@@ -3,6 +3,192 @@
 $db = Database::connect();
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 
+if ($action === 'export_xls_aprendices') {
+    $codigo_curso = filter_input(INPUT_GET, 'codigo_curso', FILTER_SANITIZE_STRING) ?? '';
+    if(empty($codigo_curso)) die("Error: Ficha o Código de curso no suministrado.");
+
+    // Obtenemos todos los aprendices filtrados por la ficha exacta armada
+    $stmtXLS = $db->prepare("SELECT * FROM aprendices WHERE codigo_curso = ? ORDER BY apellidos, nombres");
+    $stmtXLS->execute([$codigo_curso]);
+    $aprendices_xls = $stmtXLS->fetchAll(PDO::FETCH_ASSOC);
+    ?>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Generando XLS Ficha <?= htmlspecialchars($codigo_curso) ?></title>
+        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+        <style>
+            body { font-family: sans-serif; background: #333; display: flex; justify-content: center; padding-top: 50px; color: white; }
+            #loader { background: rgba(0,0,0,0.8); padding: 20px 40px; border-radius: 12px; font-weight: bold; border-left: 5px solid #10b981; }
+            /* Ocultamos la tabla en pantalla */
+            table { display: none; }
+        </style>
+    </head>
+    <body>
+        <div id="loader">Construyendo Matriz Excel (.xlsx) de la Ficha <?= htmlspecialchars($codigo_curso) ?>...</div>
+        
+        <table id="tabla-xls">
+            <thead>
+                <tr>
+                    <th>ID BD</th>
+                    <th>Documento</th>
+                    <th>Apellidos</th>
+                    <th>Nombres</th>
+                    <th>Correo</th>
+                    <th>Ficha (Curso)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach($aprendices_xls as $a): ?>
+                <tr>
+                    <td><?= htmlspecialchars($a['id'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($a['cedula'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($a['apellidos'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($a['nombres'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($a['correo'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($a['codigo_curso'] ?? '') ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <script>
+            window.onload = () => {
+                try {
+                    const table = document.getElementById('tabla-xls');
+                    const wb = XLSX.utils.table_to_book(table, {sheet: "Ficha <?= htmlspecialchars($codigo_curso) ?>"});
+                    XLSX.writeFile(wb, 'Aprendices_Ficha_<?= htmlspecialchars($codigo_curso) ?>.xlsx');
+                    
+                    const loader = document.getElementById('loader');
+                    loader.innerText = "¡Excel generado exitosamente! Puede cerrar esta pestaña.";
+                    loader.style.borderLeftColor = "#059669";
+                    
+                    setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
+                } catch(e) {
+                    const loader = document.getElementById('loader');
+                    loader.innerText = "Error: " + e.message;
+                    loader.style.borderLeftColor = "#e11d48";
+                }
+            };
+        </script>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+if ($action === 'export_curso_pdf') {
+    $codigo_curso = filter_input(INPUT_GET, 'codigo_curso', FILTER_SANITIZE_STRING) ?? '';
+    if(empty($codigo_curso)) die("Error: Ficha o Código de curso no suministrado.");
+    
+    $stmtA = $db->prepare("SELECT id, cedula, nombres, apellidos FROM aprendices WHERE codigo_curso = ? ORDER BY apellidos");
+    $stmtA->execute([$codigo_curso]);
+    $alumnos = $stmtA->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmtE = $db->prepare("SELECT id, codigo_evidencia, fase FROM evidencias WHERE codigo_curso = ? ORDER BY fase, fecha_entrega");
+    $stmtE->execute([$codigo_curso]);
+    $evidencias = $stmtE->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmtC = $db->prepare("SELECT id_aprendiz, id_evidencia, estado_calificacion FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_curso = ?");
+    $stmtC->execute([$codigo_curso]);
+    $calificaciones_raw = $stmtC->fetchAll(PDO::FETCH_ASSOC);
+    
+    $notas = [];
+    foreach($calificaciones_raw as $c) {
+        $notas[$c['id_aprendiz']][$c['id_evidencia']] = $c['estado_calificacion'];
+    }
+    
+    // Render UI estéril para impresión e invocamos script auto-descarga
+    ?>
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Sábana Ficha <?= htmlspecialchars($codigo_curso) ?></title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #555; display: flex; justify-content: center; padding: 20px; }
+            .hoja { background: white; padding: 10mm; width: 297mm; min-height: 210mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+            h2 { text-align: center; color: #333; margin-bottom: 5px; text-transform: uppercase; font-size: 18px;}
+            p.sub { text-align: center; color: #666; font-size: 12px; margin-top: 0; margin-bottom: 20px;}
+            table { width: 100%; border-collapse: collapse; font-size: 9px; }
+            th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+            th { background: #f3f4f6; color: #333; font-weight: bold; }
+            .name-cell { text-align: left; font-size: 10px; }
+            .aprobada { color: #166534; font-weight: bold; background: #dcfce7 !important; }
+            .devuelta { color: #991b1b; font-weight: bold; background: #fee2e2 !important; }
+            .pendiente { color: #9ca3af; }
+            
+            #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 30px; border-radius: 10px; font-weight: bold; font-family: sans-serif; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5);}
+        </style>
+    </head>
+    <body>
+        <div id="loader">Generando PDF Oficial y Procesando Vectores... Por favor espere.</div>
+        <div class="hoja" id="pdf-content">
+            <h2>SÁBANA OFICIAL DE CALIFICACIONES</h2>
+            <p class="sub">Programa ADSO - Ficha / Curso: <strong><?= htmlspecialchars($codigo_curso) ?></strong></p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">APRENDIZ</th>
+                        <?php foreach($evidencias as $e): ?>
+                            <th title="<?= htmlspecialchars($e['fase']) ?>"><?= htmlspecialchars($e['codigo_evidencia']) ?></th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if(empty($alumnos)): ?>
+                        <tr><td colspan="100%">No hay matriculados en esta ficha.</td></tr>
+                    <?php endif; ?>
+                    <?php foreach($alumnos as $a): ?>
+                    <tr>
+                        <td class="name-cell">
+                            <strong><?= htmlspecialchars($a['apellidos'] . ', ' . $a['nombres']) ?></strong><br>
+                            <span style="color: #666;">CC: <?= htmlspecialchars($a['cedula']) ?></span>
+                        </td>
+                        <?php foreach($evidencias as $e): 
+                            $estado = $notas[$a['id']][$e['id']] ?? 'Pendiente';
+                            $class = $estado === 'Aprobada' ? 'aprobada' : ($estado === 'Devuelta' ? 'devuelta' : 'pendiente');
+                            $letra = $estado === 'Aprobada' ? 'A' : ($estado === 'Devuelta' ? 'D' : '-');
+                        ?>
+                            <td class="<?= $class ?>"><?= $letra ?></td>
+                        <?php endforeach; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        
+        <script>
+            window.onload = () => {
+                const element = document.getElementById('pdf-content');
+                const opt = {
+                    margin:       5,
+                    filename:     'Sabana_Ficha_<?= htmlspecialchars($codigo_curso) ?>.pdf',
+                    image:        { type: 'jpeg', quality: 1 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                };
+                
+                html2pdf().set(opt).from(element).save().then(() => {
+                    document.getElementById('loader').innerText = "¡Descarga Completa! Puede cerrar esta pestaña.";
+                    document.getElementById('loader').style.background = "#166534";
+                    // Opcionalmente intentar cerrarla:
+                    setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
+                }).catch(e => {
+                    document.getElementById('loader').innerText = "Error: " + e.message;
+                    document.getElementById('loader').style.background = "#991b1b";
+                });
+            };
+        </script>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
 if ($action === 'historial'):
     // ==========================================
     // --- VISTA: HISTORIAL ESPECIFICO DE APRENDIZ ---
@@ -285,6 +471,10 @@ if ($action === 'historial'):
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Generación de informes de gestión.</p>
     </div>
 
+    <?php
+    // Obtener fichas para el selector de PDFs
+    $fichas_disponibles = $db->query("SELECT DISTINCT codigo_curso FROM aprendices ORDER BY codigo_curso")->fetchAll(PDO::FETCH_COLUMN);
+    ?>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Card Export 1: CSV -->
         <div class="card-modern p-6 flex flex-col items-center text-center group stagger-item" data-animate>
@@ -292,22 +482,44 @@ if ($action === 'historial'):
                 <i class="fa-solid fa-file-excel"></i>
             </div>
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Listado de Aprendices</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Exportar todos los aprendices activos en formato CSV o Excel.</p>
-            <button onclick="ToastSystem.info('Próximamente', 'La exportación CSV requiere la librería PHPOffice. Restringido por seguridad arquitectónica.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
-                <i class="fa-solid fa-download"></i> Exportar .CSV
-            </button>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3 leading-relaxed">Generar Listado por Ficha en formato Excel (.xlsx).</p>
+            
+            <form action="index.php" method="GET" target="_blank" class="w-full mt-auto flex flex-col gap-2">
+                <input type="hidden" name="view" value="reportes">
+                <input type="hidden" name="action" value="export_xls_aprendices">
+                <select name="codigo_curso" required class="form-input !py-2 !text-xs font-bold text-center border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
+                    <option value="">-- Seleccionar Ficha --</option>
+                    <?php foreach($fichas_disponibles as $ficha): ?>
+                        <option value="<?= htmlspecialchars($ficha) ?>"><?= htmlspecialchars($ficha) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn-secondary text-sm w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-sena/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
+                    <i class="fa-solid fa-file-excel text-emerald-600 dark:text-emerald-400"></i> Descargar Excel
+                </button>
+            </form>
         </div>
 
-        <!-- Card Export 2: PDF -->
+        <!-- Card Export 2: PDF Sabana -->
         <div class="card-modern p-6 flex flex-col items-center text-center group stagger-item" data-animate>
             <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-rose-400 text-white text-2xl flex items-center justify-center mb-4 shadow-lg shadow-red-500/20 group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-red-500/30 transition-all duration-300">
                 <i class="fa-solid fa-file-pdf"></i>
             </div>
-            <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Estado de un Curso</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Exportar sábanas de notas completas de una ficha.</p>
-            <button onclick="ToastSystem.info('Próximamente', 'La exportación PDF requiere la instalación de FPDF.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
-                <i class="fa-solid fa-download"></i> Exportar .PDF
-            </button>
+            <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Estado de la Ficha</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3 leading-relaxed">Generar Sábana de Notas en PDF.</p>
+            
+            <form action="index.php" method="GET" target="_blank" class="w-full mt-auto flex flex-col gap-2">
+                <input type="hidden" name="view" value="reportes">
+                <input type="hidden" name="action" value="export_curso_pdf">
+                <select name="codigo_curso" required class="form-input !py-2 !text-xs font-bold text-center border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
+                    <option value="">-- Seleccionar Ficha --</option>
+                    <?php foreach($fichas_disponibles as $ficha): ?>
+                        <option value="<?= htmlspecialchars($ficha) ?>"><?= htmlspecialchars($ficha) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn-secondary text-sm w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-red-500/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                    <i class="fa-solid fa-print text-red-500"></i> Renderizar Sábana
+                </button>
+            </form>
         </div>
 
         <!-- Card Export 3: Expediente -->
