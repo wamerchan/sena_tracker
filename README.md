@@ -1,59 +1,62 @@
 # SENA Tracker - ADSO
 
-¡Pilas pues! Este es el sistema de gestión y seguimiento de evidencias curriculares para las fichas del SENA (Enfocado en el programa ADSO). 
+Sistema integral de gestión y seguimiento de evidencias curriculares para las fichas de aprendizaje del SENA (Específicamente diseñado para el programa ADSO).
 
-Diseñado con una arquitectura robusta orientada a **Front Controller** y **Módulos Independientes**, nada de código espagueti. Aquí se hacen las cosas bien, como todo un profesional. 
+Este proyecto ha sido desarrollado bajo estrictos estándares de ingeniería de software, implementando una arquitectura robusta orientada a **Front Controller** y **Módulos Independientes**. Se priorizan las buenas prácticas, la seguridad y el rendimiento del sistema sobre soluciones temporales.
 
 ## 🚀 Requisitos Previos
 
-Para correr esta vuelta sin dolores de cabeza, asegúrate de tener:
-- **XAMPP / Laragon / MAMP** (Cualquier entorno con Apache y PHP >= 8.1)
-- **MariaDB / MySQL** (Viene con XAMPP)
-- **Node.js** (Opcional, pero recomendado si le vas a meter mano a los estilos de TailwindCSS)
+Para ejecutar la aplicación correctamente en un entorno de desarrollo o producción, asegúrese de contar con los siguientes componentes:
 
-## 🛠️ Instrucciones de Instalación y Ejecución
+- **XAMPP / Laragon / MAMP** (Cualquier entorno de servidor local con soporte para Apache y PHP >= 8.1)
+- **MariaDB / MySQL**
+- **Node.js** (Opcional, pero necesario para compilar la hoja de estilos de TailwindCSS si desea realizar modificaciones visuales)
+
+## 🛠️ Instrucciones de Instalación
 
 1. **Clonar el Repositorio**
-   Ubícate en la carpeta pública de tu servidor (`htdocs` en XAMPP o `www` en Laragon) y clona el proyecto:
+   Ubíquese en el directorio público de su servidor web (por ejemplo, `htdocs` en XAMPP o `www` en Laragon) y ejecute:
    ```bash
    git clone <url-del-repo> sena_tracker
    cd sena_tracker
    ```
 
-2. **Levantar la Base de Datos**
-   - Entra a phpMyAdmin (`http://localhost/phpmyadmin`).
-   - Crea una base de datos vacía llamada `sena_tracker`.
-   - Importa el archivo `database/schema.sql`. Este script ya tiene todas las tablas normalizadas (`aprendices`, `evidencias`, `calificaciones`, `instructor`) con sus llaves foráneas bien configuradas.
+2. **Configurar la Base de Datos**
+   Importe el script SQL proporcionado (`database/schema.sql`) a través de phpMyAdmin o la consola de su gestor de bases de datos preferido. Este archivo contiene la estructura normalizada completa y las relaciones foráneas necesarias para las tablas del sistema.
 
-3. **Configurar la Conexión (Opcional)**
-   Si tu usuario de MySQL no es `root` o le tienes clave, ajsuta las credenciales en el archivo de conexión:
-   `config/database.php`
-
-4. **Kompilar los estilos de Tailwind (Solo si vas a modificar el diseño)**
-   El proyecto usa Tailwind CLI para no depender del CDN en producción (¡Pilas con mandar CDNs a producción!).
-   ```bash
-   npm install
-   npm run dev
+3. **Configurar Variables de Entorno (Importante)**
+   Para proteger la configuración sensible y evitar exponer credenciales en el código fuente, la aplicación utiliza variables de entorno dinámicas. 
+   Copie el archivo de plantilla `.env.example` y renómbrelo como `.env`. Luego, introduzca los datos reales de su servidor local o remoto:
+   ```ini
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASS=123456
+   DB_NAME=sena_tracker
+   APP_VERSION=1.0.1
    ```
-   *Nota: El CSS ya compilado vive en `assets/css/output.css`, así que si solo vas a ver el sistema, no necesitas Node.*
 
-5. **¡A camellar!**
-   Abre tu navegador y entra a:
+4. **Compilar los Estilos de TailwindCSS (Opcional)**
+   Si planea modificar el diseño de la interfaz o las plantillas, recompile las clases utilitarias desde cero. La aplicación no utiliza CDNs externos en producción para maximizar la eficiencia de carga.
+   ```bash
+   npm install && npm run build
+   ```
+
+5. **Lanzar la Aplicación**
+   Acceda al sistema de administración general cargando la siguiente ruta en su navegador:
    `http://localhost/sena_tracker/`
 
 ## 🏗️ Arquitectura del Proyecto
 
-Este no es un cursito básico, la estructura está pensada para ser escalable:
-- `index.php`: Funciona como un **Front Controller**. Atrapa todas las peticiones, gestiona el layout global y permite inyecciones limpias por AJAX.
-- `config/database.php`: Conexión PDO segura. Usamos prepared statements nativos para evitar inyecciones SQL. 
-- `views/modules/`: Cada vista es un módulo independiente que encapsula su propia lógica CRUD.
-  - `aprendices.php`: Gestión de matrícula.
-  - `evidencias.php`: Sistema de pensum aislado por fichas con opción de clonado.
-  - `calificaciones.php`: Guardado en bloque (Bulk Update) con UPSERTs para optimizar peticiones.
-  - `reportes.php`: Expediente académico y sabanas de notas.
+El sistema ha sido estructurado meticulosamente para facilitar su manutención y la escalabilidad futura modular:
+- `index.php`: Ejerce el rol de **Front Controller**. Intercepta todas las llamadas HTTP, administra la renderización de la plantilla HTML troncal del sistema o responde directamente con objetos JSON puros si detecta que la petición proviene de la interfaz asíncrona (`X-Requested-With`).
+- `config/database.php`: Controlador centralizado para las conexiones mediante PDO seguro que extrae lógicamente los parámetros de conexión desde el archivo `.env`. Obliga al uso estricto de Mapeos de Parámetros y Consultas Preparadas nativas (`PDO::ATTR_EMULATE_PREPARES => false`) bloqueando permanentemente ataques de Inyección SQL.
+- `views/modules/`: Componentes modulares y aislados destinados al sistema principal (Dashboard). Implementan lógica asíncrona avanzada mediante _Fetch_ de datos para la generación y maquetado de recursos nativos (como la renderización en tiempo real de exportaciones .PDF y .XLSX por el propio cliente, minimizando los requisitos de memoria hacia el servidor backend).
 
-## ⚠️ Buenas Prácticas y Reglas
-- **Cero emulación de Prepares:** Por seguridad, usamos `PDO::ATTR_EMULATE_PREPARES => false`. Si haces un query nuevo, recuerda no repetir nombres de parámetros en el array.
-- **Tailwind Configurado:** Todo lo visual usa utilidades predefinidas. No metas CSS en línea a menos que sea estrictamente para animaciones calculadas dinámicamente.
+## 💡 Créditos y Atribuciones
 
-¡Hágale pues, a echar código limpio!
+El éxito arquitectónico de las herramientas y visual de este proyecto es resultado del trabajo colaborativo de desarrollo:
+
+- **Desarrollo y Creador Principal:** William Merchan (`wmerchan@hotmail.com`). ADSO 3070123 - Marzo de 2026.
+  *(Carga con la responsabilidad de la estructura conceptual base, modelado de negocio, definición de interfaces de usuario [UI/UX] y lineamiento general de los estándares y requerimientos educativos del modelo de calificación SENA).*
+- **Asistencia Estructural y Arquitectura IA:** Antigravity (DeepMind).
+  *(Participación como Agente/Soporte para la inyección de patrones de diseño en el desarrollo del framework en PHP; estructuración segura de endpoints modulares para Fetching; aislamiento en el control del buffer para la exportación de archivos documentales y la estandarización final de flujos con Variables de Entorno).*

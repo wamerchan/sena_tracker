@@ -1,10 +1,22 @@
 <?php
 // config/database.php
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '123456');
-define('DB_NAME', 'sena_tracker');
+// Lector rudimentario de entorno sin frameworks
+$envPath = __DIR__ . '/../.env';
+if (file_exists($envPath)) {
+    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        list($name, $value) = explode('=', $line, 2);
+        $_ENV[trim($name)] = trim($value);
+    }
+}
+
+// Credenciales con fallback a local (por si se borra el archivo accidentalmente)
+define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
+define('DB_USER', $_ENV['DB_USER'] ?? 'root');
+define('DB_PASS', $_ENV['DB_PASS'] ?? '123456');
+define('DB_NAME', $_ENV['DB_NAME'] ?? 'sena_tracker');
 
 class Database {
     private static $connection = null;

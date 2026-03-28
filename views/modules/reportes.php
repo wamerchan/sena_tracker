@@ -3,93 +3,22 @@
 $db = Database::connect();
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 
-if ($action === 'export_xls_aprendices') {
+if ($action === 'api_xls_aprendices') {
+    while (ob_get_level()) { ob_end_clean(); }
     $codigo_curso = filter_input(INPUT_GET, 'codigo_curso', FILTER_SANITIZE_STRING) ?? '';
-    if(empty($codigo_curso)) die("Error: Ficha o Código de curso no suministrado.");
+    if(empty($codigo_curso)) die(json_encode(["error" => "Filtro vacío"]));
 
-    // Obtenemos todos los aprendices filtrados por la ficha exacta armada
-    $stmtXLS = $db->prepare("SELECT * FROM aprendices WHERE codigo_curso = ? ORDER BY apellidos, nombres");
+    $stmtXLS = $db->prepare("SELECT id as ID, cedula as Documento, apellidos as Apellidos, nombres as Nombres, correo as Correo, codigo_curso as Ficha FROM aprendices WHERE codigo_curso = ? ORDER BY apellidos, nombres");
     $stmtXLS->execute([$codigo_curso]);
-    $aprendices_xls = $stmtXLS->fetchAll(PDO::FETCH_ASSOC);
-    ?>
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Generando XLS Ficha <?= htmlspecialchars($codigo_curso) ?></title>
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-        <style>
-            body { font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; color: #111827; }
-            table { display: none; }
-            
-            #toast {
-                position: fixed; top: 24px; right: 24px; background: white; color: #1f2937;
-                padding: 16px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
-                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); 
-                border-left: 4px solid #3b82f6; display: flex; align-items: center; gap: 12px; z-index: 50;
-                transform: translateX(120%); animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            }
-            @keyframes slideInToast { to { transform: translateX(0); } }
-            .toast-success { border-left-color: #10b981 !important; color: #065f46 !important; }
-            .toast-error { border-left-color: #ef4444 !important; color: #991b1b !important; }
-        </style>
-    </head>
-    <body style="display: flex; justify-content: center; padding-top: 100px;">
-        <div id="toast">⏳ Procesando Matriz Excel... Ficha <?= htmlspecialchars($codigo_curso) ?></div>
-        
-        <table id="tabla-xls">
-            <thead>
-                <tr>
-                    <th>ID BD</th>
-                    <th>Documento</th>
-                    <th>Apellidos</th>
-                    <th>Nombres</th>
-                    <th>Correo</th>
-                    <th>Ficha (Curso)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach($aprendices_xls as $a): ?>
-                <tr>
-                    <td><?= htmlspecialchars($a['id'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($a['cedula'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($a['apellidos'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($a['nombres'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($a['correo'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($a['codigo_curso'] ?? '') ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-
-        <script>
-            window.onload = () => {
-                try {
-                    const table = document.getElementById('tabla-xls');
-                    const wb = XLSX.utils.table_to_book(table, {sheet: "Ficha <?= htmlspecialchars($codigo_curso) ?>"});
-                    XLSX.writeFile(wb, 'Aprendices_Ficha_<?= htmlspecialchars($codigo_curso) ?>.xlsx');
-                    
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "✅ ¡Excel generado! Puede cerrar la pestaña.";
-                    toast.classList.add('toast-success');
-                    
-                    setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
-                } catch(e) {
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "❌ Error: " + e.message;
-                    toast.classList.add('toast-error');
-                }
-            };
-        </script>
-    </body>
-    </html>
-    <?php
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($stmtXLS->fetchAll(PDO::FETCH_ASSOC));
     exit;
 }
 
-if ($action === 'export_curso_pdf') {
+if ($action === 'api_pdf_curso') {
+    while (ob_get_level()) { ob_end_clean(); }
     $codigo_curso = filter_input(INPUT_GET, 'codigo_curso', FILTER_SANITIZE_STRING) ?? '';
-    if(empty($codigo_curso)) die("Error: Ficha o Código de curso no suministrado.");
+    if(empty($codigo_curso)) die("Error");
     
     $stmtA = $db->prepare("SELECT id, cedula, nombres, apellidos FROM aprendices WHERE codigo_curso = ? ORDER BY apellidos");
     $stmtA->execute([$codigo_curso]);
@@ -107,103 +36,51 @@ if ($action === 'export_curso_pdf') {
     foreach($calificaciones_raw as $c) {
         $notas[$c['id_aprendiz']][$c['id_evidencia']] = $c['estado_calificacion'];
     }
-    
-    // Render UI estéril para impresión e invocamos script auto-descarga
     ?>
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <title>Sábana Ficha <?= htmlspecialchars($codigo_curso) ?></title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <div id="pdf-wrap-container">
         <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #555; display: flex; justify-content: center; padding: 20px; }
-            .hoja { background: white; padding: 10mm; width: 297mm; min-height: 210mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-            h2 { text-align: center; color: #333; margin-bottom: 5px; text-transform: uppercase; font-size: 18px;}
-            p.sub { text-align: center; color: #666; font-size: 12px; margin-top: 0; margin-bottom: 20px;}
-            table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            th, td { border: 1px solid #ccc; padding: 4px; text-align: center; }
-            th { background: #f3f4f6; color: #333; font-weight: bold; }
-            .name-cell { text-align: left; font-size: 10px; }
-            .aprobada { color: #166534; font-weight: bold; background: #dcfce7 !important; }
-            .devuelta { color: #991b1b; font-weight: bold; background: #fee2e2 !important; }
-            .pendiente { color: #9ca3af; }
-            
-            #toast {
-                position: fixed; top: 24px; right: 24px; background: white; color: #1f2937;
-                padding: 16px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
-                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); 
-                border-left: 4px solid #3b82f6; display: flex; align-items: center; z-index: 1000;
-                transform: translateX(120%); animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            }
-            @keyframes slideInToast { to { transform: translateX(0); } }
-            .toast-success { border-left-color: #10b981 !important; color: #065f46 !important; }
-            .toast-error { border-left-color: #ef4444 !important; color: #991b1b !important; }
-        </style>
-    </head>
-    <body>
-        <div id="toast">⏳ Procesando Vectores PDF...</div>
-        <div class="hoja" id="pdf-content">
-            <h2>SÁBANA OFICIAL DE CALIFICACIONES</h2>
-            <p class="sub">Programa ADSO - Ficha / Curso: <strong><?= htmlspecialchars($codigo_curso) ?></strong></p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 25%;">APRENDIZ</th>
-                        <?php foreach($evidencias as $e): ?>
-                            <th title="<?= htmlspecialchars($e['fase']) ?>"><?= htmlspecialchars($e['codigo_evidencia']) ?></th>
-                        <?php endforeach; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if(empty($alumnos)): ?>
-                        <tr><td colspan="100%">No hay matriculados en esta ficha.</td></tr>
-                    <?php endif; ?>
-                    <?php foreach($alumnos as $a): ?>
-                    <tr>
-                        <td class="name-cell">
-                            <strong><?= htmlspecialchars($a['apellidos'] . ', ' . $a['nombres']) ?></strong><br>
-                            <span style="color: #666;">CC: <?= htmlspecialchars($a['cedula']) ?></span>
-                        </td>
-                        <?php foreach($evidencias as $e): 
-                            $estado = $notas[$a['id']][$e['id']] ?? 'Pendiente';
-                            $class = $estado === 'Aprobada' ? 'aprobada' : ($estado === 'Devuelta' ? 'devuelta' : 'pendiente');
-                            $letra = $estado === 'Aprobada' ? 'A' : ($estado === 'Devuelta' ? 'D' : '-');
-                        ?>
-                            <td class="<?= $class ?>"><?= $letra ?></td>
-                        <?php endforeach; ?>
-                    </tr>
+            .hoja-imprimir { background: white; padding: 10mm; width: 297mm; color: #000; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; }
+        .hoja-imprimir h2 { text-align: center; color: #333; margin-bottom: 5px; text-transform: uppercase; font-size: 18px;}
+        .hoja-imprimir p.sub { text-align: center; color: #666; font-size: 12px; margin-top: 0; margin-bottom: 20px;}
+        .hoja-imprimir table { width: 100%; border-collapse: collapse; font-size: 9px; }
+        .hoja-imprimir th, .hoja-imprimir td { border: 1px solid #ccc; padding: 4px; text-align: center; }
+        .hoja-imprimir th { background: #f3f4f6; color: #333; font-weight: bold; }
+        .hoja-imprimir .name-cell { text-align: left; font-size: 10px; }
+        .hoja-imprimir .aprobada { color: #166534; font-weight: bold; background: #dcfce7 !important; }
+        .hoja-imprimir .devuelta { color: #991b1b; font-weight: bold; background: #fee2e2 !important; }
+        .hoja-imprimir .pendiente { color: #9ca3af; }
+    </style>
+    <div class="hoja-imprimir" id="pdf-container-rendered">
+        <h2>SÁBANA OFICIAL DE CALIFICACIONES</h2>
+        <p class="sub">Programa ADSO - Ficha / Curso: <strong><?= htmlspecialchars($codigo_curso) ?></strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">APRENDIZ</th>
+                    <?php foreach($evidencias as $e): ?>
+                        <th title="<?= htmlspecialchars($e['fase']) ?>"><?= htmlspecialchars($e['codigo_evidencia']) ?></th>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        
-        <script>
-            window.onload = () => {
-                const element = document.getElementById('pdf-content');
-                const opt = {
-                    margin:       5,
-                    filename:     'Sabana_Ficha_<?= htmlspecialchars($codigo_curso) ?>.pdf',
-                    image:        { type: 'jpeg', quality: 1 },
-                    html2canvas:  { scale: 2, useCORS: true },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-                };
-                
-                html2pdf().set(opt).from(element).save().then(() => {
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "✅ ¡Descarga Completa! Puede cerrar la pestaña.";
-                    toast.classList.add('toast-success');
-                    setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
-                }).catch(e => {
-                    const toast = document.getElementById('toast');
-                    toast.innerText = "❌ Error: " + e.message;
-                    toast.classList.add('toast-error');
-                });
-            };
-        </script>
-    </body>
-    </html>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach($alumnos as $a): ?>
+                <tr>
+                    <td class="name-cell">
+                        <strong><?= htmlspecialchars($a['apellidos'] . ', ' . $a['nombres']) ?></strong><br>
+                        <span style="color: #666;">CC: <?= htmlspecialchars($a['cedula']) ?></span>
+                    </td>
+                    <?php foreach($evidencias as $e): 
+                        $estado = $notas[$a['id']][$e['id']] ?? 'Pendiente';
+                        $class = $estado === 'Aprobada' ? 'aprobada' : ($estado === 'Devuelta' ? 'devuelta' : 'pendiente');
+                        $letra = $estado === 'Aprobada' ? 'A' : ($estado === 'Devuelta' ? 'D' : '-');
+                    ?>
+                        <td class="<?= $class ?>"><?= $letra ?></td>
+                    <?php endforeach; ?>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
     <?php
     exit;
 }
@@ -433,9 +310,7 @@ if ($action === 'historial'):
             </div>
         </div>
 
-        <!-- Librerías de Exportación JS -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+        <!-- Librerías de Exportación movidas al footer global -->
         
         <script>
         function exportarPDF() {
@@ -463,19 +338,202 @@ if ($action === 'historial'):
         }
 
         function exportarExcel() {
-            ToastSystem.info('Generando Excel', 'Extrayendo datos de la tabla...');
-            
-            // Clonar la tabla para limpiarla antes de exportar
-            const table = document.getElementById('tabla-exportar').cloneNode(true);
-            
-            try {
-                // xlsx parsea la tabla automáticamente
-                const wb = XLSX.utils.table_to_book(table, {sheet: "Expediente"});
-                XLSX.writeFile(wb, 'Expediente_<?= htmlspecialchars($aprendiz['cedula']) ?>.xlsx');
-                ToastSystem.success('Exportación Exitosa', 'El archivo Excel ha sido descargado.');
-            } catch (err) {
-                ToastSystem.error('Error', 'Hubo un problema generando el archivo Excel.');
-            }
+            ToastSystem.info('Generando Excel', 'Construyendo archivo estilizado...');
+
+            const historial = <?= json_encode($historial) ?>;
+            const aprendiz = <?= json_encode([
+                'nombres' => $aprendiz['nombres'],
+                'apellidos' => $aprendiz['apellidos'],
+                'cedula' => $aprendiz['cedula'],
+                'correo' => $aprendiz['correo'],
+                'codigo_curso' => $aprendiz['codigo_curso']
+            ]) ?>;
+
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'ADSO SENA Tracker';
+            wb.created = new Date();
+            const ws = wb.addWorksheet('Expediente', {
+                properties: { defaultColWidth: 18 }
+            });
+
+            // === HELPERS ===
+            const senaGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF39A900' } };
+            const darkHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+            const lightGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
+            const infoBgFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+            const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+            const aprobadaFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+            const devueltaFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+            const morosoFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+            const ventanaFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+            const thinBorder = { top: { style: 'thin', color: { argb: 'FFD1D5DB' } }, bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } }, left: { style: 'thin', color: { argb: 'FFD1D5DB' } }, right: { style: 'thin', color: { argb: 'FFD1D5DB' } } };
+            const whiteFont16 = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+            const whiteFont11 = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+            const darkFont11 = { name: 'Calibri', size: 11, bold: true };
+            const normalFont11 = { name: 'Calibri', size: 11 };
+
+            // === ROW 1: TITLE BANNER (SENA green) ===
+            ws.getRow(1).height = 38;
+            ws.mergeCells('A1:F1');
+            const titleCell = ws.getCell('A1');
+            titleCell.value = '  SENA - ADSO  |  Expediente Académico';
+            titleCell.font = whiteFont16;
+            titleCell.fill = senaGreenFill;
+            titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+            // === ROW 2: Aprendiz info ===
+            ws.getRow(2).height = 24;
+            ws.mergeCells('A2:C2');
+            const nameCell = ws.getCell('A2');
+            nameCell.value = 'Aprendiz: ' + aprendiz.apellidos + ', ' + aprendiz.nombres;
+            nameCell.font = darkFont11;
+            nameCell.fill = infoBgFill;
+            nameCell.border = thinBorder;
+
+            ws.mergeCells('D2:F2');
+            const cedCell = ws.getCell('D2');
+            cedCell.value = 'Cédula: ' + aprendiz.cedula;
+            cedCell.font = normalFont11;
+            cedCell.fill = infoBgFill;
+            cedCell.border = thinBorder;
+
+            // === ROW 3: Correo + Ficha ===
+            ws.getRow(3).height = 24;
+            ws.mergeCells('A3:C3');
+            const emailCell = ws.getCell('A3');
+            emailCell.value = 'Correo: ' + aprendiz.correo;
+            emailCell.font = normalFont11;
+            emailCell.fill = infoBgFill;
+            emailCell.border = thinBorder;
+
+            ws.mergeCells('D3:F3');
+            const fichaCell = ws.getCell('D3');
+            fichaCell.value = 'Ficha: ' + aprendiz.codigo_curso;
+            fichaCell.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF6366F1' } };
+            fichaCell.fill = infoBgFill;
+            fichaCell.border = thinBorder;
+            fichaCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // === ROW 4: Spacer ===
+            ws.getRow(4).height = 6;
+
+            // === ROW 5: COLUMN HEADERS ===
+            ws.getRow(5).height = 30;
+            const headers = ['Código Evidencia', 'Fase', 'Guía', 'Fecha Cierre', 'Estatus', 'Fecha Calificación'];
+            headers.forEach((h, i) => {
+                const cell = ws.getCell(5, i + 1);
+                cell.value = h;
+                cell.font = whiteFont11;
+                cell.fill = darkHeaderFill;
+                cell.border = thinBorder;
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            });
+
+            // === DATA ROWS ===
+            let aprobadas = 0;
+            historial.forEach((h, idx) => {
+                const rowNum = idx + 6;
+                const row = ws.getRow(rowNum);
+                row.height = 22;
+
+                const fv = new Date(h.fecha_entrega);
+                const fechaCierre = fv.toLocaleDateString('es-CO') + ' ' + fv.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                const fechaCal = h.fecha_calificacion ? new Date(h.fecha_calificacion).toLocaleDateString('es-CO') : '—';
+
+                // Determine status fill
+                let statusFill = idx % 2 === 0 ? lightGreenFill : whiteFill;
+                if (h.nota === 'Aprobada') { aprobadas++; statusFill = aprobadaFill; }
+                else if (h.nota === 'Devuelta') { statusFill = devueltaFill; }
+                else if (fv < new Date()) { statusFill = morosoFill; }
+                else { statusFill = ventanaFill; }
+
+                const rowBg = idx % 2 === 0 ? lightGreenFill : whiteFill;
+
+                // Codigo Evidencia
+                const c1 = row.getCell(1);
+                c1.value = h.codigo_evidencia;
+                c1.font = darkFont11;
+                c1.fill = rowBg;
+                c1.border = thinBorder;
+                c1.alignment = { vertical: 'middle' };
+
+                // Fase
+                const c2 = row.getCell(2);
+                c2.value = h.fase;
+                c2.font = normalFont11;
+                c2.fill = rowBg;
+                c2.border = thinBorder;
+                c2.alignment = { vertical: 'middle' };
+
+                // Guía
+                const c3 = row.getCell(3);
+                c3.value = h.guia_aprendizaje;
+                c3.font = normalFont11;
+                c3.fill = rowBg;
+                c3.border = thinBorder;
+                c3.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                // Fecha Cierre
+                const c4 = row.getCell(4);
+                c4.value = fechaCierre;
+                c4.font = normalFont11;
+                c4.fill = rowBg;
+                c4.border = thinBorder;
+                c4.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                // Estatus (colored background)
+                const c5 = row.getCell(5);
+                c5.value = h.nota;
+                c5.font = { name: 'Calibri', size: 11, bold: true };
+                c5.fill = statusFill;
+                c5.border = thinBorder;
+                c5.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                // Fecha Calificación
+                const c6 = row.getCell(6);
+                c6.value = fechaCal;
+                c6.font = normalFont11;
+                c6.fill = rowBg;
+                c6.border = thinBorder;
+                c6.alignment = { vertical: 'middle', horizontal: 'center' };
+            });
+
+            // === PROGRESS ROW ===
+            const progressRow = historial.length + 7;
+            const porcentaje = historial.length > 0 ? Math.round((aprobadas / historial.length) * 100) : 0;
+            ws.mergeCells(`D${progressRow}:E${progressRow}`);
+            const lblCell = ws.getCell(`D${progressRow}`);
+            lblCell.value = 'PROGRESO APROBADO:';
+            lblCell.font = darkFont11;
+            lblCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+            const pctCell = ws.getCell(`F${progressRow}`);
+            pctCell.value = porcentaje + '%';
+            pctCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF6366F1' } };
+            pctCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // === COLUMN WIDTHS ===
+            ws.getColumn(1).width = 24;
+            ws.getColumn(2).width = 28;
+            ws.getColumn(3).width = 10;
+            ws.getColumn(4).width = 24;
+            ws.getColumn(5).width = 16;
+            ws.getColumn(6).width = 22;
+
+            // === FREEZE PANES (freeze header) ===
+            ws.views = [{ state: 'frozen', ySplit: 4 }];
+
+            // === EXPORT ===
+            wb.xlsx.writeBuffer().then(buffer => {
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Expediente_' + aprendiz.cedula + '.xlsx';
+                a.click();
+                URL.revokeObjectURL(url);
+                ToastSystem.success('Exportación Exitosa', 'El archivo Excel estilizado ha sido descargado.');
+            });
         }
         </script>
     <?php endif; ?>
@@ -503,9 +561,7 @@ if ($action === 'historial'):
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Listado de Aprendices</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3 leading-relaxed">Generar Listado por Ficha en formato Excel (.xlsx).</p>
             
-            <form action="index.php" method="GET" target="_blank" class="w-full mt-auto flex flex-col gap-2">
-                <input type="hidden" name="view" value="reportes">
-                <input type="hidden" name="action" value="export_xls_aprendices">
+            <form onsubmit="procesarExportacionXLS(event)" class="w-full mt-auto flex flex-col gap-2">
                 <select name="codigo_curso" required class="form-input !py-2 !text-xs font-bold text-center border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
                     <option value="">-- Seleccionar Ficha --</option>
                     <?php foreach($fichas_disponibles as $ficha): ?>
@@ -526,9 +582,7 @@ if ($action === 'historial'):
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Estado de la Ficha</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3 leading-relaxed">Generar Sábana de Notas en PDF.</p>
             
-            <form action="index.php" method="GET" target="_blank" class="w-full mt-auto flex flex-col gap-2">
-                <input type="hidden" name="view" value="reportes">
-                <input type="hidden" name="action" value="export_curso_pdf">
+            <form onsubmit="procesarExportacionPDF(event)" class="w-full mt-auto flex flex-col gap-2">
                 <select name="codigo_curso" required class="form-input !py-2 !text-xs font-bold text-center border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
                     <option value="">-- Seleccionar Ficha --</option>
                     <?php foreach($fichas_disponibles as $ficha): ?>
@@ -576,3 +630,203 @@ if ($action === 'historial'):
     });
     </script>
 <?php endif; ?>
+
+<!-- Librerías de Exportación JS (Global para Reportes) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+<!-- Contenedor invisible para renderizado temporal PDF -->
+<div id="hidden-print-container" style="position: absolute; left: -9999px; top: -9999px; overflow: hidden; width:297mm;"></div>
+
+<script>
+async function procesarExportacionXLS(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const curso = e.target.codigo_curso.value;
+    if(!curso) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
+    ToastSystem.info('Descargando Data', 'Consultando base de datos...');
+
+    try {
+        const res = await fetch(`?view=reportes&action=api_xls_aprendices&codigo_curso=${curso}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if(data.error) { ToastSystem.error('Error', data.error); return; }
+
+        ToastSystem.info('Construyendo Archivo', 'Aplicando formato y estilos...');
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'ADSO SENA Tracker';
+        wb.created = new Date();
+        const ws = wb.addWorksheet('Ficha ' + curso, {
+            properties: { defaultColWidth: 18 }
+        });
+
+        // === HELPERS ===
+        const senaGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF39A900' } };
+        const darkHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+        const lightGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
+        const infoBgFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
+        const whiteFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        const thinBorder = { top: { style: 'thin', color: { argb: 'FFD1D5DB' } }, bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } }, left: { style: 'thin', color: { argb: 'FFD1D5DB' } }, right: { style: 'thin', color: { argb: 'FFD1D5DB' } } };
+        const whiteFont16 = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        const whiteFont10 = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        const whiteFont11 = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        const darkFont11 = { name: 'Calibri', size: 11, bold: true };
+        const normalFont11 = { name: 'Calibri', size: 11 };
+
+        // === ROW 1: TITLE BANNER ===
+        ws.getRow(1).height = 38;
+        ws.mergeCells('A1:F1');
+        const titleCell = ws.getCell('A1');
+        titleCell.value = '  SENA - ADSO  |  Listado de Aprendices';
+        titleCell.font = whiteFont16;
+        titleCell.fill = senaGreenFill;
+        titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+        // === ROW 2: Info ===
+        ws.getRow(2).height = 26;
+        ws.mergeCells('A2:C2');
+        const fichaLabel = ws.getCell('A2');
+        fichaLabel.value = 'Ficha: ' + curso;
+        fichaLabel.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF39A900' } };
+        fichaLabel.fill = infoBgFill;
+        fichaLabel.border = thinBorder;
+
+        ws.mergeCells('D2:E2');
+        const countLabel = ws.getCell('D2');
+        countLabel.value = 'Total Aprendices:';
+        countLabel.font = darkFont11;
+        countLabel.fill = infoBgFill;
+        countLabel.border = thinBorder;
+        countLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+
+        const countCell = ws.getCell('F2');
+        countCell.value = data.length;
+        countCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF6366F1' } };
+        countCell.fill = infoBgFill;
+        countCell.border = thinBorder;
+        countCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Fill remaining cells in row 2
+        ['A','B','C','D','E','F'].forEach(c => {
+            const cell = ws.getCell(c + '2');
+            if(!cell.fill) cell.fill = infoBgFill;
+            if(!cell.border) cell.border = thinBorder;
+        });
+
+        // === ROW 3: Spacer ===
+        ws.getRow(3).height = 6;
+
+        // === ROW 4: COLUMN HEADERS ===
+        ws.getRow(4).height = 30;
+        const headers = ['ID', 'Cédula', 'Apellidos', 'Nombres', 'Correo', 'Ficha'];
+        headers.forEach((h, i) => {
+            const cell = ws.getCell(4, i + 1);
+            cell.value = h;
+            cell.font = whiteFont11;
+            cell.fill = darkHeaderFill;
+            cell.border = thinBorder;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        // === DATA ROWS ===
+        data.forEach((row, idx) => {
+            const rowNum = idx + 5;
+            const r = ws.getRow(rowNum);
+            r.height = 22;
+            const rowBg = idx % 2 === 0 ? lightGreenFill : whiteFill;
+
+            const values = [
+                { val: row.ID, center: true },
+                { val: row.Documento, center: false },
+                { val: row.Apellidos, center: false },
+                { val: row.Nombres, center: false },
+                { val: row.Correo, center: false },
+                { val: row.Ficha, center: true }
+            ];
+
+            values.forEach((item, c) => {
+                const cell = r.getCell(c + 1);
+                cell.value = item.val || '';
+                cell.font = c === 0 ? darkFont11 : normalFont11;
+                cell.fill = rowBg;
+                cell.border = thinBorder;
+                cell.alignment = { vertical: 'middle', horizontal: item.center ? 'center' : 'left' };
+            });
+        });
+
+        // === COLUMN WIDTHS ===
+        ws.getColumn(1).width = 8;   // ID
+        ws.getColumn(2).width = 16;  // Cédula
+        ws.getColumn(3).width = 22;  // Apellidos
+        ws.getColumn(4).width = 22;  // Nombres
+        ws.getColumn(5).width = 32;  // Correo
+        ws.getColumn(6).width = 14;  // Ficha
+
+        // === FREEZE PANES ===
+        ws.views = [{ state: 'frozen', ySplit: 4 }];
+
+        // === EXPORT ===
+        wb.xlsx.writeBuffer().then(buffer => {
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Aprendices_Ficha_' + curso + '.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+            ToastSystem.success('Master Generado', 'El archivo Excel estilizado se descargó automáticamente.');
+        });
+    } catch(err) {
+        ToastSystem.error('Error Crítico', 'Fallo al procesar la matriz Excel.');
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-file-excel text-emerald-600 dark:text-emerald-400"></i> Descargar Excel';
+    }
+}
+
+async function procesarExportacionPDF(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const curso = e.target.codigo_curso.value;
+    if(!curso) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Renderizando...';
+    ToastSystem.info('Cargando UI estéril', 'Renderizando plantilla oficial de calificaciones...');
+
+    try {
+        const res = await fetch(`?view=reportes&action=api_pdf_curso&codigo_curso=${curso}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const html = await res.text();
+        
+        const container = document.getElementById('hidden-print-container');
+        container.innerHTML = html;
+        
+        ToastSystem.info('Render Vectorial', 'Convirtiendo página a Documento PDF...');
+        const opt = {
+            margin:       5,
+            filename:     'Sabana_Ficha_' + curso + '.pdf',
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+        
+        await html2pdf().set(opt).from(container.firstElementChild).save();
+        ToastSystem.success('Sábana Oficial', 'El documento se generó y descargó intacto.');
+    } catch(err) {
+        ToastSystem.error('Error Crítico', 'Fallo procesando el renderizado de PDF.');
+        console.error(err);
+    } finally {
+        document.getElementById('hidden-print-container').innerHTML = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-print text-red-500"></i> Renderizar Sábana';
+    }
+}
+</script>
