@@ -951,11 +951,6 @@ html {
 .btn-gradient-sena:hover {
   --tw-translate-y: -0.125rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-  background-image: linear-gradient(to right, var(--tw-gradient-stops));
-  --tw-gradient-from: #2A7A00 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(42 122 0 / 0) var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
-  --tw-gradient-to: #39A900 var(--tw-gradient-to-position);
   --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
@@ -3807,6 +3802,16 @@ html {
 .group:hover .group-hover\:shadow-sena\/30 {
   --tw-shadow-color: rgb(57 169 0 / 0.3);
   --tw-shadow: var(--tw-shadow-colored);
+}
+
+.peer:focus ~ .peer-focus\:text-indigo-500 {
+  --tw-text-opacity: 1;
+  color: rgb(99 102 241 / var(--tw-text-opacity, 1));
+}
+
+.peer:focus ~ .peer-focus\:text-sena {
+  --tw-text-opacity: 1;
+  color: rgb(57 169 0 / var(--tw-text-opacity, 1));
 }
 
 .dark\:inline:is(.dark *) {

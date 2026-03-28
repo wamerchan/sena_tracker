@@ -100,7 +100,7 @@
   }
 
   .btn-gradient-sena:hover {
-    @apply shadow-lg shadow-sena/30 -translate-y-0.5 bg-gradient-to-r from-sena-600 to-sena;
+    @apply shadow-lg shadow-sena/30 -translate-y-0.5;
   }
 
   .btn-gradient-sena:active {

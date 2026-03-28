@@ -4,10 +4,14 @@ $db = Database::connect();
 $mensaje = '';
 $tipo_mensaje = '';
 
-// --- BLOQUE CRUD (POST) ---
+// ==========================================
+// BLOQUE CRUD (POST) - ¡Pilas acá arquitecto!
+// Aquí centralizamos la inyección de datos para no tener archivos sueltos procesando formularios.
+// Pura cohesión de módulo.
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
-    // Crear o Editar Aprendiz
+    // Crear o Editar Aprendiz (Upsert lógico)
     if ($_POST['action'] === 'save_aprendiz') {
         $id = filter_input(INPUT_POST, 'id', FILTER_SANITIZE_NUMBER_INT);
         $cedula = trim($_POST['cedula'] ?? '');
@@ -60,7 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// Filtros GET
+// ==========================================
+// FILTROS Y PAGINACIÓN - Modo Lectura GET
+// ==========================================
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $ficha_filter = isset($_GET['ficha']) ? trim($_GET['ficha']) : '';
 $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'apellidos';
@@ -110,7 +116,9 @@ $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $aprendices = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ---- RESPUESTA AJAX PARCIAL ----
+// ---- RESPUESTA AJAX PARCIAL (DOM Diffing manual) ----
+// Parcero, si la petición viene por fetch/XHR, devolvemos SOLO la tabla.
+// Así nos ahorramos redibujar todo el layout global. SPA a lo criollo pero efectivo.
 $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 if ($is_ajax):
 ?>
@@ -123,7 +131,7 @@ if ($is_ajax):
             <thead class="bg-gray-50/80 dark:bg-gray-800/50">
                 <tr>
                     <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors" onclick="handleSort('cedula', '<?= $sort_col === 'cedula' && $order_dir === 'ASC' ? 'DESC' : 'ASC' ?>')">
-                        <span class="flex items-center">Cedula <?= getSortIcon('cedula', $sort_col, $order_dir) ?></span>
+                        <span class="flex items-center">Cédula <?= getSortIcon('cedula', $sort_col, $order_dir) ?></span>
                     </th>
                     <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors" onclick="handleSort('apellidos', '<?= $sort_col === 'apellidos' && $order_dir === 'ASC' ? 'DESC' : 'ASC' ?>')">
                         <span class="flex items-center">Nombre Completo <?= getSortIcon('apellidos', $sort_col, $order_dir) ?></span>
@@ -183,7 +191,7 @@ endif;
 <!-- Header -->
 <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fade-in-up">
     <div>
-        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Gestion de Aprendices</h1>
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Gestión de Aprendices</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Alta, baja y listado general de alumnos.</p>
     </div>
     <button onclick="openModal()" class="btn-gradient-indigo btn-ripple flex items-center gap-2 text-sm">
@@ -210,7 +218,7 @@ endif;
         <div class="flex-1">
             <label class="form-label">Buscar en la tabla</label>
             <div class="search-input-wrapper">
-                <input type="text" id="searchInput" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cedula, nombre o correo...">
+                <input type="text" id="searchInput" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cédula, nombre o correo...">
                 <span class="search-icon"><i id="searchIcon" class="fa-solid fa-magnifying-glass"></i></span>
             </div>
         </div>
@@ -256,7 +264,7 @@ endif;
                 <thead class="bg-gray-50/80 dark:bg-gray-800/50">
                     <tr>
                         <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors" onclick="handleSort('cedula', '<?= $sort_col === 'cedula' && $order_dir === 'ASC' ? 'DESC' : 'ASC' ?>')">
-                            <span class="flex items-center">Cedula <?= getSortIcon('cedula', $sort_col, $order_dir) ?></span>
+                            <span class="flex items-center">Cédula <?= getSortIcon('cedula', $sort_col, $order_dir) ?></span>
                         </th>
                         <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors" onclick="handleSort('apellidos', '<?= $sort_col === 'apellidos' && $order_dir === 'ASC' ? 'DESC' : 'ASC' ?>')">
                             <span class="flex items-center">Nombre Completo <?= getSortIcon('apellidos', $sort_col, $order_dir) ?></span>
@@ -340,11 +348,11 @@ endif;
             <input type="hidden" name="id" id="form_id" value="">
 
             <div class="space-y-4">
-                <!-- Row 1: Cedula + Ficha -->
+                <!-- Row 1: Cédula + Ficha -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="input-group">
                         <input type="text" name="cedula" id="form_cedula" required placeholder=" " class="form-input peer pt-5">
-                        <label>Cedula *</label>
+                        <label>Cédula *</label>
                         <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-id-card"></i></span>
                     </div>
                     <div class="input-group">
@@ -374,14 +382,14 @@ endif;
                 <!-- Row 3: Correo -->
                 <div class="input-group">
                     <input type="email" name="correo" id="form_correo" required placeholder=" " class="form-input peer pt-5">
-                    <label>Correo Electronico *</label>
+                    <label>Correo Electrónico *</label>
                     <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-envelope"></i></span>
                 </div>
 
-                <!-- Row 4: Telefono -->
+                <!-- Row 4: Teléfono -->
                 <div class="input-group">
                     <input type="text" name="telefono" id="form_telefono" placeholder=" " class="form-input peer pt-5">
-                    <label>Telefono</label>
+                    <label>Teléfono</label>
                     <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-phone"></i></span>
                 </div>
             </div>
@@ -524,12 +532,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeModal();
     });
 
-    // Delete confirmation (styled modal)
+    // Delete confirmation (styled modal - NADA DE alert() chimbo)
     window.confirmDelete = (id) => {
         showDeleteConfirm({
             title: 'Eliminar Aprendiz',
-            message: 'Esta accion eliminara permanentemente al aprendiz del sistema. Todas sus calificaciones asociadas tambien se borraran en cascada. Esta accion no se puede deshacer.',
-            confirmText: 'Si, Eliminar',
+            message: 'Eliminar a este mijo lo borra del sistema y vuele sus notas en cascada. Pilas, esta acción no se puede deshacer.',
+            confirmText: 'Sí, Eliminar de una',
             onConfirm: () => {
                 document.getElementById('delete_id').value = id;
                 document.getElementById('deleteForm').submit();

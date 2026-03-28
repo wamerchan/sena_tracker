@@ -4,7 +4,10 @@ $db = Database::connect();
 $mensaje = '';
 $tipo_mensaje = '';
 
-// Procesar Formulario de Edicion
+// ==========================================
+// PROCESAR FORMULARIO DE EDICIÓN
+// Actualizamos los datos del instructor que rige en el sistema.
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_instructor') {
     $id = filter_input(INPUT_POST, 'id', FILTER_SANITIZE_NUMBER_INT);
     $nombres = filter_input(INPUT_POST, 'nombres', FILTER_SANITIZE_STRING);
@@ -21,9 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $tipo_mensaje = "success";
         } catch (PDOException $e) {
             if ($e->getCode() == 23000) {
-                $mensaje = "Error: La cedula o el correo ya estan en uso.";
+                $mensaje = "Error: La cédula o el correo ya están en uso, verifique bien mijo.";
             } else {
-                $mensaje = "Error de base de datos: " . $e->getMessage();
+                $mensaje = "Error en base de datos: " . $e->getMessage();
             }
             $tipo_mensaje = "error";
         }
@@ -71,9 +74,9 @@ if (!$instructor) {
                     <div class="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-white/10 -translate-x-8 translate-y-8"></div>
                 </div>
             </div>
-            <div class="px-6 pb-6 flex flex-col items-center -mt-14">
-                <div class="w-28 h-28 bg-white dark:bg-gray-700 rounded-2xl border-4 border-white dark:border-gray-800 flex items-center justify-center text-5xl text-gray-300 dark:text-gray-500 shadow-lg">
-                    <i class="fa-solid fa-user-tie text-sena"></i>
+            <div class="px-6 pb-6 flex flex-col items-center -mt-14 relative z-10">
+                <div class="w-28 h-28 bg-white dark:bg-gray-700 rounded-2xl border-4 border-white dark:border-gray-800 flex items-center justify-center text-5xl shadow-lg relative z-20">
+                    <i class="fa-solid fa-user-tie text-blue-900 dark:text-blue-400 relative z-30"></i>
                 </div>
                 <h2 class="text-xl font-extrabold text-gray-900 dark:text-white mt-3 text-center"><?= htmlspecialchars($instructor['nombres'] . ' ' . $instructor['apellidos']) ?></h2>
                 <div class="flex items-center gap-1.5 mt-1">
@@ -95,7 +98,7 @@ if (!$instructor) {
                 </div>
                 <div>
                     <h3 class="text-lg font-bold text-gray-800 dark:text-white">Actualizar Datos</h3>
-                    <p class="text-xs text-gray-400 dark:text-gray-500">Modifica tu informacion personal</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">Modifica tu información personal</p>
                 </div>
             </div>
 
@@ -120,19 +123,19 @@ if (!$instructor) {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="input-group">
                             <input type="text" name="cedula" value="<?= htmlspecialchars($instructor['cedula']) ?>" required placeholder=" " class="form-input peer pt-5">
-                            <label>Cedula *</label>
+                            <label>Cédula *</label>
                             <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-id-card"></i></span>
                         </div>
                         <div class="input-group">
                             <input type="text" name="telefono" value="<?= htmlspecialchars($instructor['telefono'] ?? '') ?>" placeholder=" " class="form-input peer pt-5">
-                            <label>Telefono</label>
+                            <label>Teléfono</label>
                             <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-phone"></i></span>
                         </div>
                     </div>
 
                     <div class="input-group">
                         <input type="email" name="correo" value="<?= htmlspecialchars($instructor['correo']) ?>" required placeholder=" " class="form-input peer pt-5">
-                        <label>Correo Electronico *</label>
+                        <label>Correo Electrónico *</label>
                         <span class="input-icon peer-focus:text-sena"><i class="fa-solid fa-envelope"></i></span>
                     </div>
                 </div>

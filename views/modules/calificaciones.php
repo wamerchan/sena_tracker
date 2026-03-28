@@ -4,7 +4,11 @@ $db = Database::connect();
 $mensaje = '';
 $tipo_mensaje = '';
 
-// Lógica de Guardado en Bloque
+// ==========================================
+// LÓGICA DE GUARDADO EN BLOQUE (Bulk Update)
+// Aquí metemos un UPSERT (Insert on Duplicate Key Update).
+// Procesamos todas las notas de un totazo, optimizando idas a la base de datos.
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bulk_update') {
     $id_evidencia_post = filter_input(INPUT_POST, 'id_evidencia', FILTER_SANITIZE_NUMBER_INT);
     $calificaciones = $_POST['calificaciones'] ?? [];
@@ -42,7 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $filtro_curso = filter_input(INPUT_GET, 'curso', FILTER_SANITIZE_STRING) ?? '';
 $filtro_evidencia = filter_input(INPUT_GET, 'evidencia', FILTER_SANITIZE_NUMBER_INT) ?? '';
 
-// Listas para Selects
+// ==========================================
+// LISTAS DINÁMICAS PARA SELECTS
+// ==========================================
 $cursos = $db->query("SELECT DISTINCT codigo_curso FROM aprendices ORDER BY codigo_curso")->fetchAll(PDO::FETCH_ASSOC);
 
 $evidencias = [];
@@ -82,7 +88,7 @@ if ($evidencia_seleccionada) {
 
 <!-- Header -->
 <div class="mb-6 animate-fade-in-up">
-    <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Evaluacion de Evidencias</h1>
+    <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Evaluación de Evidencias</h1>
     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Califica de forma masiva por ficha (curso).</p>
 </div>
 
@@ -103,7 +109,7 @@ if ($evidencia_seleccionada) {
     <input type="hidden" name="view" value="calificaciones">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-            <label class="form-label">Codigo de Curso (Ficha)</label>
+            <label class="form-label">Código de Curso (Ficha)</label>
             <select name="curso" class="form-select" required onchange="this.form.submit()">
                 <option value="">-- Seleccione una Ficha --</option>
                 <?php foreach($cursos as $c): ?>
@@ -153,7 +159,7 @@ if ($evidencia_seleccionada) {
                         <tr>
                             <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Documento</th>
                             <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aprendiz</th>
-                            <th class="px-6 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Calificacion Actual</th>
+                            <th class="px-6 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Calificación Actual</th>
                             <th class="px-6 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nueva Nota</th>
                         </tr>
                     </thead>

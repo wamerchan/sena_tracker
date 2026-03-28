@@ -4,7 +4,12 @@ $db = Database::connect();
 $action = filter_input(INPUT_GET, 'action', FILTER_SANITIZE_STRING) ?? '';
 
 if ($action === 'historial'):
+    // ==========================================
     // --- VISTA: HISTORIAL ESPECIFICO DE APRENDIZ ---
+    // Consulta pesada (JOIN) con lógica de negocio.
+    // Cruzamos la master de EVIDENCIAS vs CALIFICACIONES específicas del alumno.
+    // Así detectamos huecos y morosidad.
+    // ==========================================
     $search_cedula = trim($_GET['cedula'] ?? '');
     $aprendiz = null;
     $historial = [];
@@ -39,9 +44,9 @@ if ($action === 'historial'):
             <i class="fa-solid fa-arrow-left text-xs"></i> Volver al Centro de Reportes
         </a>
         <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-            <i class="fa-solid fa-id-card-clip text-indigo-500 mr-2"></i> Expediente Academico
+            <i class="fa-solid fa-id-card-clip text-indigo-500 mr-2"></i> Expediente Académico
         </h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Situacion curricular proyectada contra el pensum de la ficha asignada.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Situación curricular proyectada contra el pensum de la ficha asignada.</p>
     </div>
 
     <!-- Buscador -->
@@ -51,7 +56,7 @@ if ($action === 'historial'):
             <input type="hidden" name="action" value="historial">
 
             <div class="flex-1 w-full">
-                <label class="form-label">Documento de Identidad (Cedula)</label>
+                <label class="form-label">Documento de Identidad (Cédula)</label>
                 <div class="search-input-wrapper">
                     <input type="text" name="cedula" value="<?= htmlspecialchars($search_cedula) ?>" placeholder="Ej: 1020304050" required class="!py-3.5 !text-lg !font-bold !tracking-wider">
                     <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
@@ -80,7 +85,7 @@ if ($action === 'historial'):
                     </p>
                 </div>
                 <div class="text-right">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Matricula Activa en</span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Matrícula Activa en</span>
                     <span class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-extrabold text-lg shadow-lg shadow-indigo-500/20 tracking-tight"><?= htmlspecialchars($aprendiz['codigo_curso']) ?></span>
                 </div>
             </div>
@@ -89,8 +94,8 @@ if ($action === 'historial'):
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                 <thead class="bg-gray-50/80 dark:bg-gray-800/50">
                     <tr>
-                        <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Codigo Evidencia</th>
-                        <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Etapa / Guia</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Código Evidencia</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Etapa / Guía</th>
                         <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cierre</th>
                         <th class="px-6 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estatus</th>
                     </tr>
@@ -125,7 +130,7 @@ if ($action === 'historial'):
                             </td>
                             <td class="px-6 py-4 hidden md:table-cell">
                                 <span class="block text-xs text-gray-500 uppercase font-bold"><?= htmlspecialchars($h['fase']) ?></span>
-                                <span class="block text-sm font-medium text-gray-600 dark:text-gray-400">Guia <?= htmlspecialchars($h['guia_aprendizaje']) ?></span>
+                                <span class="block text-sm font-medium text-gray-600 dark:text-gray-400">Guía <?= htmlspecialchars($h['guia_aprendizaje']) ?></span>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="text-sm font-medium text-gray-600 dark:text-gray-400"><?= $fv->format('d M y - H:i') ?></span>
@@ -158,11 +163,13 @@ if ($action === 'historial'):
     <?php endif; ?>
 
 <?php else:
-// --- VISTA 2: MENU DE REPORTES PRINCIPAL ---
+// ==========================================
+// --- VISTA 2: MENÚ DE REPORTES PRINCIPAL ---
+// ==========================================
 ?>
     <div class="mb-8 animate-fade-in-up">
         <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Reportes y Exportaciones</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Generacion de informes de gestion.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Generación de informes de gestión.</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -173,7 +180,7 @@ if ($action === 'historial'):
             </div>
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Listado de Aprendices</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Exportar todos los aprendices activos en formato CSV o Excel.</p>
-            <button onclick="ToastSystem.info('Proximamente', 'La exportacion CSV requiere la libreria PHPOffice.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
+            <button onclick="ToastSystem.info('Próximamente', 'La exportación CSV requiere la librería PHPOffice. Restringido por seguridad arquitectónica.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
                 <i class="fa-solid fa-download"></i> Exportar .CSV
             </button>
         </div>
@@ -184,8 +191,8 @@ if ($action === 'historial'):
                 <i class="fa-solid fa-file-pdf"></i>
             </div>
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Estado de un Curso</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Exportar sabanas de notas completas de una ficha.</p>
-            <button onclick="ToastSystem.info('Proximamente', 'La exportacion PDF requiere la instalacion de FPDF.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Exportar sábanas de notas completas de una ficha.</p>
+            <button onclick="ToastSystem.info('Próximamente', 'La exportación PDF requiere la instalación de FPDF.')" class="mt-auto btn-secondary text-sm w-full flex items-center justify-center gap-2">
                 <i class="fa-solid fa-download"></i> Exportar .PDF
             </button>
         </div>
@@ -202,7 +209,7 @@ if ($action === 'historial'):
                 <i class="fa-solid fa-id-card-clip"></i>
             </div>
             <h3 class="font-bold text-gray-800 dark:text-gray-200 text-lg">Expediente Individual</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Rastreo de situacion curricular y morosidad por Cedula.</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-5 leading-relaxed">Rastreo de situación curricular y morosidad por Cédula.</p>
             <a href="?view=reportes&action=historial" class="mt-auto btn-gradient-indigo btn-ripple text-sm w-full flex items-center justify-center gap-2">
                 <i class="fa-solid fa-satellite-dish"></i> Acceder al Motor
             </a>

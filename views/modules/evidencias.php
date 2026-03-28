@@ -4,7 +4,11 @@ $db = Database::connect();
 $mensaje = '';
 $tipo_mensaje = '';
 
-// --- BLOQUE CRUD MULTI-FICHA (POST) ---
+// ==========================================
+// BLOQUE CRUD MULTI-FICHA (POST)
+// Aquí manejamos tanto la creación individual como la clonación masiva (Replicación).
+// Todo bien empacado y validado en el backend, como debe ser.
+// ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     // CREAR / EDITAR
@@ -41,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
     }
 
-    // REPLICAR
+    // REPLICAR (CLONACIÓN PROFUNDA)
+    // Pilas aquí: Tomamos una evidencia base y la clonamos completica pa' otra ficha,
+    // pero le dejamos cambiar las fechas porque cada grupo avanza a su ritmo.
     if ($_POST['action'] === 'replicar_evidencia') {
         $id_origen = filter_input(INPUT_POST, 'id_origen', FILTER_SANITIZE_NUMBER_INT);
         $curso_destino = trim($_POST['curso_destino'] ?? '');
@@ -93,10 +99,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 $vista_activa = isset($_GET['ficha']) ? trim($_GET['ficha']) : null;
-$fasesEnum = ['Fase I Analisis', 'Fase II Planeacion', 'Fase III Ejecucion'];
+$fasesEnum = ['Fase I Análisis', 'Fase II Planeación', 'Fase III Ejecución'];
 $guiasEnum = ['GA1', 'GA2', 'GA3', 'GA4', 'GA5', 'GA6', 'GA7', 'GA8', 'GA9'];
 
-// ==================== VISTA 1: DASHBOARD FICHAS ====================
+// ==========================================
+// VISTA 1: DASHBOARD FICHAS
+// Si no hay ficha en la URL, mostramos el tablero maestro.
+// ==========================================
 if (!$vista_activa):
     $fichas_metrics = $db->query("
         SELECT
@@ -139,8 +148,8 @@ if (!$vista_activa):
 ?>
     <!-- VISTA 1: DASHBOARD FICHAS -->
     <div class="mb-8 animate-fade-in-up">
-        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Seleccionar Ficha Tecnica</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Hace clic en un curso para gestionar su pensum y fechas de entrega.</p>
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Seleccionar Ficha Técnica</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Dale clic a un curso para gestionar su pensum aislado y sus fechas de entrega.</p>
     </div>
 
     <?php if ($mensaje): ?>
@@ -180,7 +189,7 @@ if (!$vista_activa):
                     <div class="mt-auto flex gap-3">
                         <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center flex-1 border border-gray-100 dark:border-gray-700">
                             <span class="block text-xl font-extrabold text-gray-800 dark:text-gray-100"><?= $ficha['total_evidencias'] ?></span>
-                            <span class="block text-[10px] uppercase font-bold tracking-widest text-gray-400 dark:text-gray-500">Modulos</span>
+                            <span class="block text-[10px] uppercase font-bold tracking-widest text-gray-400 dark:text-gray-500">Módulos</span>
                         </div>
                         <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center flex-1 border border-amber-100 dark:border-amber-900/30">
                             <span class="block text-xl font-extrabold text-amber-600 dark:text-amber-400"><?= $ficha['en_curso'] ?></span>
@@ -217,11 +226,11 @@ else:
         </a>
         <div class="card-modern p-6 border-l-4 border-l-sena flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-500 dark:text-indigo-400 block mb-1">Administrando Curricula</span>
+                <span class="text-[10px] uppercase font-bold tracking-widest text-indigo-500 dark:text-indigo-400 block mb-1">Administrando Currícula Aisalda</span>
                 <h1 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Ficha: <?= htmlspecialchars($vista_activa) ?></h1>
             </div>
             <button onclick="openModalCreate()" class="btn-gradient-indigo btn-ripple flex items-center gap-2 text-sm">
-                <i class="fa-solid fa-plus"></i> Anadir Unidad
+                <i class="fa-solid fa-plus"></i> Añadir Unidad
             </button>
         </div>
     </div>
@@ -245,7 +254,7 @@ else:
                     <div class="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-folder-open text-xl"></i>
                     </div>
-                    <p class="font-medium">Esta ficha esta vacia. Su pensum no tiene evidencias.</p>
+                    <p class="font-medium">Esta ficha está vacía. Su pensum no tiene evidencias todavía, ¡ponete las pilas!</p>
                 </div>
             </div>
         <?php else: foreach($evidencias_curso as $i => $e):
@@ -280,7 +289,7 @@ else:
                     <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div class="flex-1">
                             <div class="flex flex-wrap items-center gap-2 mb-2">
-                                <span class="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-bold tracking-widest uppercase border border-gray-200 dark:border-gray-600">Guia <?= htmlspecialchars($e['guia_aprendizaje']) ?></span>
+                                <span class="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-bold tracking-widest uppercase border border-gray-200 dark:border-gray-600">Guía <?= htmlspecialchars($e['guia_aprendizaje']) ?></span>
                                 <span class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 text-[10px] font-bold tracking-widest uppercase"><?= htmlspecialchars($e['fase']) ?></span>
                             </div>
                             <h3 class="font-bold text-gray-900 dark:text-white text-lg tracking-tight mb-1"><?= htmlspecialchars($e['codigo_evidencia']) ?></h3>
@@ -331,7 +340,7 @@ else:
                         </div>
                         <div>
                             <h3 class="font-bold text-lg uppercase tracking-wide" id="modalTitleCrud">Nueva Evidencia</h3>
-                            <p class="text-white/70 text-xs">Configura los parametros de la unidad</p>
+                            <p class="text-white/70 text-xs">Configura los parámetros de la unidad</p>
                         </div>
                     </div>
                     <button onclick="closeModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center justify-center">
@@ -350,7 +359,7 @@ else:
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="input-group">
                             <input type="text" name="codigo_evidencia" id="form_codigo" required placeholder=" " class="form-input peer pt-5">
-                            <label>Codigo Identificador *</label>
+                            <label>Código Identificador *</label>
                             <span class="input-icon peer-focus:text-indigo-500"><i class="fa-solid fa-hashtag"></i></span>
                         </div>
 
@@ -368,15 +377,15 @@ else:
                     <!-- Row 2: Fase + Guia -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="form-label">Fase Academica *</label>
+                            <label class="form-label">Fase Académica *</label>
                             <select name="fase" id="form_fase" required class="form-select">
                                 <?php foreach($fasesEnum as $fase): ?><option value="<?= $fase ?>"><?= $fase ?></option><?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label class="form-label">Guia Estipulada *</label>
+                            <label class="form-label">Guía Estipulada *</label>
                             <select name="guia_aprendizaje" id="form_guia" required class="form-select">
-                                <?php foreach($guiasEnum as $guia): ?><option value="<?= $guia ?>">Guia <?= $guia ?></option><?php endforeach; ?>
+                                <?php foreach($guiasEnum as $guia): ?><option value="<?= $guia ?>">Guía <?= $guia ?></option><?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -384,10 +393,10 @@ else:
                     <!-- Row 3: Textareas -->
                     <div class="card-modern p-5 bg-gray-50 dark:bg-gray-800/50">
                         <label class="form-label mb-2"><i class="fa-solid fa-align-left mr-1 text-indigo-400"></i> Contenido Curricular *</label>
-                        <textarea name="descripcion" id="form_desc" rows="3" required class="form-input mb-4" placeholder="Descripcion general de la tarea..."></textarea>
+                        <textarea name="descripcion" id="form_desc" rows="3" required class="form-input mb-4" placeholder="Descripción general de la tarea..."></textarea>
 
                         <label class="form-label mb-2"><i class="fa-solid fa-lock mr-1 text-amber-400"></i> Observaciones Internas</label>
-                        <textarea name="observaciones" id="form_obs" rows="2" class="form-input opacity-80" placeholder="Tips de evaluacion..."></textarea>
+                        <textarea name="observaciones" id="form_obs" rows="2" class="form-input opacity-80" placeholder="Tips de evaluación para el instructor..."></textarea>
                     </div>
                 </div>
 
@@ -409,8 +418,8 @@ else:
                             <i class="fa-solid fa-copy text-lg"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-lg">Replicar Modulo</h3>
-                            <p class="text-indigo-200 text-xs">Migrar contenido hacia otro grupo</p>
+                            <h3 class="font-bold text-lg">Replicar Módulo</h3>
+                            <p class="text-indigo-200 text-xs">Migrar contenido intacto hacia otro grupo</p>
                         </div>
                     </div>
                     <button onclick="closeModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center justify-center">
@@ -425,11 +434,11 @@ else:
 
                 <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-4 mb-6 relative overflow-hidden">
                     <span class="absolute right-0 top-0 bg-indigo-500 text-white text-[9px] font-bold uppercase px-2.5 py-1 rounded-bl-lg">SOURCE</span>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Se copiara la estructura de:</p>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Se copiará la estructura de:</p>
                     <p class="font-bold text-gray-800 dark:text-gray-200 text-sm mt-1" id="clone_name">EVI-XX</p>
                 </div>
 
-                <label class="form-label">Destino (Ficha de Inyeccion) *</label>
+                <label class="form-label">Destino (Ficha de Inyección) *</label>
                 <select name="curso_destino" required class="form-select mb-5">
                     <option value="">-- Elija ficha destino --</option>
                     <?php foreach($otras_fichas as $f_dest): ?><option value="<?= $f_dest ?>"><?= $f_dest ?></option><?php endforeach; ?>
@@ -447,7 +456,7 @@ else:
                 </div>
 
                 <button type="submit" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white rounded-xl shadow-lg shadow-indigo-500/20 font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:-translate-y-0.5 btn-ripple">
-                    <i class="fa-solid fa-bolt mr-2"></i> Disparar Replicacion
+                    <i class="fa-solid fa-bolt mr-2"></i> Disparar Replicación
                 </button>
             </form>
         </div>
@@ -478,7 +487,7 @@ else:
         };
 
         window.openModalCreate = () => {
-            modalTitleCrud.textContent = "NUEVO MODULO AL PENSUM";
+            modalTitleCrud.textContent = "NUEVO MÓDULO AL PENSUM";
             modalIconCrud.className = 'fa-solid fa-file-circle-plus text-lg';
             document.getElementById('form_id').value = '';
             document.getElementById('form_codigo').value = '';
@@ -488,7 +497,7 @@ else:
             document.getElementById('form_guia').value = '';
             document.getElementById('form_desc').value = '';
             document.getElementById('form_obs').value = '';
-            btnGuardarCrud.innerHTML = '<i class="fa-solid fa-plus mr-1.5"></i> Publicar Modulo Nuevo';
+            btnGuardarCrud.innerHTML = '<i class="fa-solid fa-plus mr-1.5"></i> Publicar Módulo Nuevo';
             openModalBase(modalCRUD);
         };
 
@@ -536,8 +545,8 @@ else:
         window.confirmDelete = (id) => {
             showDeleteConfirm({
                 title: 'Eliminar Evidencia',
-                message: 'Esta evidencia y todas sus calificaciones asociadas seran eliminadas permanentemente. Esta accion no se puede deshacer.',
-                confirmText: 'Si, Eliminar',
+                message: 'Pilas: Esta evidencia y TODAS sus calificaciones asociadas se van a borrar permanentemente. Pura destrucción en cascada. Esta acción no tiene reversa.',
+                confirmText: 'Sí, Eliminar de una',
                 onConfirm: () => {
                     document.getElementById('delete_id').value = id;
                     document.getElementById('deleteForm').submit();
