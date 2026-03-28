@@ -328,7 +328,7 @@ else:
     </form>
 
     <!-- Modal Overlay -->
-    <div id="modalOverlay" class="modal-overlay" style="opacity: 0;">
+    <div id="modalOverlay" class="modal-overlay hidden" style="opacity: 0;">
 
         <!-- MODAL CRUD -->
         <div id="modalCRUD" class="hidden modal-container max-w-3xl" style="opacity: 0; transform: translateY(16px) scale(0.95);">

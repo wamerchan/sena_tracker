@@ -323,7 +323,7 @@ endif;
 </form>
 
 <!-- Modal Create/Edit -->
-<div id="modalOverlay" class="modal-overlay" style="opacity: 0;">
+<div id="modalOverlay" class="modal-overlay hidden" style="opacity: 0;">
     <div class="modal-container max-w-lg" id="modalContent" style="opacity: 0; transform: translateY(16px) scale(0.95);">
         <!-- Gradient Header -->
         <div class="modal-header-gradient">

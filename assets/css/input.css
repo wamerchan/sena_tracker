@@ -174,20 +174,11 @@
   }
 
   .table-row-hover {
-    @apply transition-all duration-200 relative;
-  }
-
-  .table-row-hover::before {
-    content: '';
-    @apply absolute left-0 top-0 bottom-0 w-0.5 bg-sena scale-y-0 transition-transform duration-200 origin-center;
+    @apply transition-all duration-200 border-l-2 border-transparent;
   }
 
   .table-row-hover:hover {
-    @apply bg-sena/5 dark:bg-sena/10;
-  }
-
-  .table-row-hover:hover::before {
-    @apply scale-y-100;
+    @apply bg-sena/5 dark:bg-sena/10 border-l-sena;
   }
 
   /* ============================================
@@ -217,7 +208,7 @@
      ENHANCED MODALS
      ============================================ */
   .modal-overlay {
-    @apply fixed inset-0 z-50 hidden items-center justify-center backdrop-blur-sm transition-all duration-300;
+    @apply fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm transition-all duration-300;
     background: rgba(0, 0, 0, 0.5);
   }
 

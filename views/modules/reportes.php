@@ -84,14 +84,34 @@ if ($action === 'historial'):
                         <i class="fa-regular fa-envelope mr-1"></i> <?= htmlspecialchars($aprendiz['correo']) ?>
                     </p>
                 </div>
-                <div class="text-right">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Matrícula Activa en</span>
-                    <span class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-extrabold text-lg shadow-lg shadow-indigo-500/20 tracking-tight"><?= htmlspecialchars($aprendiz['codigo_curso']) ?></span>
+                <div class="text-right flex flex-col items-end gap-3">
+                    <div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Matrícula Activa en</span>
+                        <span class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-extrabold text-lg shadow-lg shadow-indigo-500/20 tracking-tight"><?= htmlspecialchars($aprendiz['codigo_curso']) ?></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="exportarExcel()" class="btn-ripple bg-emerald-50 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                            <i class="fa-solid fa-file-excel mr-1"></i> XLS
+                        </button>
+                        <button type="button" onclick="exportarPDF()" class="btn-ripple bg-rose-50 dark:bg-rose-900/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                        </button>
+                    </div>
                 </div>
             </div>
 
+            <!-- Div Wrapper para el PDF -->
+            <div id="print-area" class="bg-white dark:bg-gray-800">
+                <!-- Información oculta que solo sale en el PDF -->
+                <div class="hidden print-header p-6 pb-0">
+                    <h2 class="text-2xl font-bold uppercase text-gray-900">Expediente Académico</h2>
+                    <p class="text-gray-600"><strong>Aprendiz:</strong> <?= htmlspecialchars($aprendiz['apellidos'] . ', ' . $aprendiz['nombres']) ?> (<?= htmlspecialchars($aprendiz['cedula']) ?>)</p>
+                    <p class="text-gray-600"><strong>Ficha:</strong> <?= htmlspecialchars($aprendiz['codigo_curso']) ?></p>
+                    <hr class="my-4 border-gray-200">
+                </div>
+
             <!-- Tabla de Historial -->
-            <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
+            <table id="tabla-exportar" class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                 <thead class="bg-gray-50/80 dark:bg-gray-800/50">
                     <tr>
                         <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Código Evidencia</th>
@@ -159,7 +179,85 @@ if ($action === 'historial'):
                 </div>
             </div>
             <?php endif; ?>
+            </div> <!-- End Print Area -->
         </div>
+
+        <!-- Librerías de Exportación JS -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+        
+        <script>
+        function exportarPDF() {
+            ToastSystem.info('Generando PDF', 'Preparando el documento, esto tomará unos segundos...');
+            
+            const element = document.getElementById('print-area');
+            const header = element.querySelector('.print-header');
+            
+            // 1. Mostrar cabecera oculta
+            header.classList.remove('hidden');
+            
+            // 2. Controlar 'Dark Mode' y color de fuente
+            const originalDark = document.documentElement.classList.contains('dark');
+            if (originalDark) document.documentElement.classList.remove('dark');
+            
+            // Inyectar CSS temporal para blanco y negro puro (textos e íconos)
+            const style = document.createElement('style');
+            style.id = 'pdf-print-styles';
+            style.innerHTML = `
+                #print-area * { color: #000 !important; border-color: #000 !important; }
+                .badge-gradient-success, .badge-gradient-warning, .badge-gradient-danger, .badge-gradient-neutral {
+                    background: transparent !important;
+                    border: 1px solid #000 !important;
+                }
+                .progress-bar-gradient { border: 1px solid #000 !important; background: transparent !important; }
+                .progress-bar-gradient > div { background: #000 !important; }
+                i.fa-solid, i.fa-regular { color: #000 !important; }
+            `;
+            document.head.appendChild(style);
+            
+            // 3. Opciones Apaisado y escalado
+            const opt = {
+                margin:       10,
+                filename:     'Expediente_<?= htmlspecialchars($aprendiz['cedula']) ?>.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, windowWidth: element.scrollWidth }, // Captura al ancho real
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } // Horizontal 'apaisado'
+            };
+
+            // 4. Generar y restaurar
+            html2pdf().set(opt).from(element).save().then(() => {
+                restaurarEstilos(header, originalDark);
+                ToastSystem.success('Exportación Exitosa', 'El archivo PDF ha sido descargado en formato horizontal.');
+            }).catch(err => {
+                restaurarEstilos(header, originalDark);
+                ToastSystem.error('Error', 'Hubo un problema generando el PDF.');
+                console.error(err);
+            });
+        }
+        
+        function restaurarEstilos(header, wasDark) {
+            header.classList.add('hidden');
+            const styleNode = document.getElementById('pdf-print-styles');
+            if (styleNode) styleNode.remove();
+            if (wasDark) document.documentElement.classList.add('dark');
+        }
+
+        function exportarExcel() {
+            ToastSystem.info('Generando Excel', 'Extrayendo datos de la tabla...');
+            
+            // Clonar la tabla para limpiarla antes de exportar
+            const table = document.getElementById('tabla-exportar').cloneNode(true);
+            
+            try {
+                // xlsx parsea la tabla automáticamente
+                const wb = XLSX.utils.table_to_book(table, {sheet: "Expediente"});
+                XLSX.writeFile(wb, 'Expediente_<?= htmlspecialchars($aprendiz['cedula']) ?>.xlsx');
+                ToastSystem.success('Exportación Exitosa', 'El archivo Excel ha sido descargado.');
+            } catch (err) {
+                ToastSystem.error('Error', 'Hubo un problema generando el archivo Excel.');
+            }
+        }
+        </script>
     <?php endif; ?>
 
 <?php else:
