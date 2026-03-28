@@ -4,20 +4,19 @@ $db = Database::connect();
 $mensaje = '';
 $tipo_mensaje = '';
 
-// Lógica de Guardado en Bloque (Bulk Update)
+// Lógica de Guardado en Bloque
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'bulk_update') {
     $id_evidencia_post = filter_input(INPUT_POST, 'id_evidencia', FILTER_SANITIZE_NUMBER_INT);
-    $calificaciones = $_POST['calificaciones'] ?? []; // Array [id_aprendiz => estado]
+    $calificaciones = $_POST['calificaciones'] ?? [];
 
     if ($id_evidencia_post && !empty($calificaciones)) {
         try {
             $db->beginTransaction();
             foreach ($calificaciones as $id_aprendiz => $estado) {
-                // Validación básica de ENUM
                 if (!in_array($estado, ['Sin calificar', 'Aprobada', 'Devuelta'])) continue;
 
                 $stmt = $db->prepare("
-                    INSERT INTO calificaciones (id_aprendiz, id_evidencia, estado_calificacion) 
+                    INSERT INTO calificaciones (id_aprendiz, id_evidencia, estado_calificacion)
                     VALUES (:id_aprendiz, :id_evidencia, :estado_insert)
                     ON DUPLICATE KEY UPDATE estado_calificacion = :estado_update
                 ");
@@ -33,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $tipo_mensaje = "success";
         } catch (PDOException $e) {
             $db->rollBack();
-            $mensaje = "Error al actualizar calificaciones: " . $e->getMessage();
+            $mensaje = "Error al actualizar: " . $e->getMessage();
             $tipo_mensaje = "error";
         }
     }
@@ -43,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $filtro_curso = filter_input(INPUT_GET, 'curso', FILTER_SANITIZE_STRING) ?? '';
 $filtro_evidencia = filter_input(INPUT_GET, 'evidencia', FILTER_SANITIZE_NUMBER_INT) ?? '';
 
-// Obtener listas para los Selects
+// Listas para Selects
 $cursos = $db->query("SELECT DISTINCT codigo_curso FROM aprendices ORDER BY codigo_curso")->fetchAll(PDO::FETCH_ASSOC);
 
 $evidencias = [];
@@ -53,17 +52,14 @@ if ($filtro_curso) {
     $evidencias = $stmtE_list->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Si hay filtros, cargar alumnos y sus notas
 $alumnos = [];
 $evidencia_seleccionada = null;
 
 if ($filtro_curso && $filtro_evidencia) {
-    // Buscar detalle de evidencia actual (para el control de vencimiento)
     $stmtE = $db->prepare("SELECT fecha_entrega FROM evidencias WHERE id = ?");
     $stmtE->execute([$filtro_evidencia]);
     $evidencia_seleccionada = $stmtE->fetch(PDO::FETCH_ASSOC);
 
-    // Join aprendices con calificaciones para esa evidencia (LEFT JOIN)
     $stmtA = $db->prepare("
         SELECT a.id as id_aprendiz, a.nombres, a.apellidos, a.cedula,
                COALESCE(c.estado_calificacion, 'Sin calificar') as estado
@@ -76,7 +72,6 @@ if ($filtro_curso && $filtro_evidencia) {
     $alumnos = $stmtA->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Helper para fecha
 $es_vencida = false;
 if ($evidencia_seleccionada) {
     $fecha_actual = new DateTime();
@@ -85,46 +80,49 @@ if ($evidencia_seleccionada) {
 }
 ?>
 
-<div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100 uppercase tracking-tight">Evaluación de Evidencias</h1>
+<!-- Header -->
+<div class="mb-6 animate-fade-in-up">
+    <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Evaluacion de Evidencias</h1>
     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Califica de forma masiva por ficha (curso).</p>
 </div>
 
+<!-- Alerts -->
 <?php if ($mensaje): ?>
-<div class="mb-4 p-4 rounded-lg <?= $tipo_mensaje === 'success' ? 'bg-green-100 text-green-800 border check' : 'bg-red-100 text-red-800' ?> transition-all">
-    <i class="fa-solid <?= $tipo_mensaje === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation' ?>"></i> <?= htmlspecialchars($mensaje) ?>
+<div class="mb-6 animate-fade-in-down">
+    <div class="flex items-center gap-3 p-4 rounded-xl <?= $tipo_mensaje === 'success' ? 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300' ?> shadow-sm">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center <?= $tipo_mensaje === 'success' ? 'bg-emerald-500' : 'bg-red-500' ?> text-white flex-shrink-0">
+            <i class="fa-solid <?= $tipo_mensaje === 'success' ? 'fa-check' : 'fa-xmark' ?> text-sm"></i>
+        </div>
+        <span class="text-sm font-medium"><?= htmlspecialchars($mensaje) ?></span>
+    </div>
 </div>
 <?php endif; ?>
 
-<!-- Filters Form -->
-<form method="GET" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-100 dark:border-gray-700">
+<!-- Filter Form -->
+<form method="GET" class="card-modern p-6 mb-6 animate-fade-in-up" style="animation-delay: 100ms">
     <input type="hidden" name="view" value="calificaciones">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Código de Curso (Ficha)</label>
-            <select name="curso" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-sm focus:border-sena focus:ring-sena transition-colors" required onchange="this.form.submit()">
+            <label class="form-label">Codigo de Curso (Ficha)</label>
+            <select name="curso" class="form-select" required onchange="this.form.submit()">
                 <option value="">-- Seleccione una Ficha --</option>
                 <?php foreach($cursos as $c): ?>
-                    <option value="<?= htmlspecialchars($c['codigo_curso']) ?>" <?= $filtro_curso === $c['codigo_curso'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($c['codigo_curso']) ?>
-                    </option>
+                    <option value="<?= htmlspecialchars($c['codigo_curso']) ?>" <?= $filtro_curso === $c['codigo_curso'] ? 'selected' : '' ?>><?= htmlspecialchars($c['codigo_curso']) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Evidencia a Evaluar</label>
-            <select name="evidencia" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 shadow-sm focus:border-sena focus:ring-sena transition-colors" <?= empty($evidencias) ? 'disabled' : 'required' ?>>
+            <label class="form-label">Evidencia a Evaluar</label>
+            <select name="evidencia" class="form-select" <?= empty($evidencias) ? 'disabled' : 'required' ?>>
                 <option value=""><?= empty($filtro_curso) ? '-- Elija Ficha Primero --' : '-- Seleccione Evidencia --' ?></option>
                 <?php foreach($evidencias as $e): ?>
-                    <option value="<?= $e['id'] ?>" <?= $filtro_evidencia == $e['id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($e['codigo_evidencia']) ?> (Vence: <?= date('d/m/Y', strtotime($e['fecha_entrega'])) ?>)
-                    </option>
+                    <option value="<?= $e['id'] ?>" <?= $filtro_evidencia == $e['id'] ? 'selected' : '' ?>><?= htmlspecialchars($e['codigo_evidencia']) ?> (Vence: <?= date('d/m/Y', strtotime($e['fecha_entrega'])) ?>)</option>
                 <?php endforeach; ?>
             </select>
         </div>
     </div>
-    <div class="mt-4 flex justify-end">
-        <button type="submit" class="bg-sena hover:bg-sena-dark text-white font-semibold py-2 px-6 rounded-lg transition-colors shadow-sm focus:ring focus:ring-sena/50">
+    <div class="mt-5 flex justify-end">
+        <button type="submit" class="btn-gradient-sena btn-ripple text-sm flex items-center gap-2">
             <i class="fa-solid fa-search"></i> Buscar Aprendices
         </button>
     </div>
@@ -132,76 +130,65 @@ if ($evidencia_seleccionada) {
 
 <!-- Results Table -->
 <?php if ($filtro_curso && $filtro_evidencia): ?>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        
+    <div class="card-modern overflow-hidden animate-fade-in-up" style="animation-delay: 200ms">
+
         <!-- Header Info -->
-        <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col sm:flex-row justify-between items-center">
-            <h3 class="font-bold text-gray-800 dark:text-gray-200">Resultados Ficha: <span class="text-sena"><?= htmlspecialchars($filtro_curso) ?></span></h3>
-            <div class="mt-2 sm:mt-0">
-                Estado Evidencia: 
-                <?php if ($es_vencida): ?>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                        <i class="fa-solid fa-clock mr-1"></i> Vencida
-                    </span>
-                <?php else: ?>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                        <i class="fa-solid fa-lock-open mr-1"></i> Abierta
-                    </span>
-                <?php endif; ?>
-            </div>
+        <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h3 class="font-bold text-gray-800 dark:text-gray-200">Resultados Ficha: <span class="text-sena font-extrabold"><?= htmlspecialchars($filtro_curso) ?></span></h3>
+            <?php if ($es_vencida): ?>
+                <span class="badge-gradient-danger"><i class="fa-solid fa-clock mr-1"></i> Evidencia Vencida</span>
+            <?php else: ?>
+                <span class="badge-gradient-success"><i class="fa-solid fa-lock-open mr-1"></i> Evidencia Abierta</span>
+            <?php endif; ?>
         </div>
 
-        <!-- Formularo Bulk Update -->
+        <!-- Bulk Update Form -->
         <form method="POST" action="?view=calificaciones&curso=<?= urlencode($filtro_curso) ?>&evidencia=<?= urlencode($filtro_evidencia) ?>">
             <input type="hidden" name="action" value="bulk_update">
             <input type="hidden" name="id_evidencia" value="<?= htmlspecialchars($filtro_evidencia) ?>">
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-800/50">
+                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
+                    <thead class="bg-gray-50/80 dark:bg-gray-800/50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Documento</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aprendiz</th>
-                            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Calificación Actual</th>
-                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Establecer Nueva Nota</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Documento</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aprendiz</th>
+                            <th class="px-6 py-3.5 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Calificacion Actual</th>
+                            <th class="px-6 py-3.5 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nueva Nota</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
                         <?php if (empty($alumnos)): ?>
-                            <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay aprendices registrados en esta ficha.</td></tr>
-                        <?php else: ?>
-                            <?php foreach($alumnos as $a): ?>
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['cedula']) ?></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                        <?= htmlspecialchars($a['apellidos'] . ' ' . $a['nombres']) ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                                        <?php if($a['estado'] == 'Aprobada'): ?>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fa-solid fa-check mr-1"></i> Aprobada</span>
-                                        <?php elseif($a['estado'] == 'Devuelta'): ?>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fa-solid fa-rotate-left mr-1"></i> Devuelta</span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><i class="fa-regular fa-calendar-minus mr-1"></i> Sin calificar</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                        <select name="calificaciones[<?= $a['id_aprendiz'] ?>]" class="rounded text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-sena focus:border-sena">
-                                            <option value="Sin calificar" <?= $a['estado'] == 'Sin calificar' ? 'selected' : '' ?>>Sin calificar</option>
-                                            <option value="Aprobada" <?= $a['estado'] == 'Aprobada' ? 'selected' : '' ?>>Aprobada (A)</option>
-                                            <option value="Devuelta" <?= $a['estado'] == 'Devuelta' ? 'selected' : '' ?>>Devuelta (D)</option>
-                                        </select>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                            <tr><td colspan="4" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No hay aprendices registrados en esta ficha.</td></tr>
+                        <?php else: foreach($alumnos as $i => $a): ?>
+                            <tr class="table-row-hover" style="animation: fadeInUp 0.4s ease-out <?= $i * 40 ?>ms forwards; opacity: 0;">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['cedula']) ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white"><?= htmlspecialchars($a['apellidos'] . ' ' . $a['nombres']) ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <?php if($a['estado'] == 'Aprobada'): ?>
+                                        <span class="badge-gradient-success"><i class="fa-solid fa-check mr-1"></i> Aprobada</span>
+                                    <?php elseif($a['estado'] == 'Devuelta'): ?>
+                                        <span class="badge-gradient-warning"><i class="fa-solid fa-rotate-left mr-1"></i> Devuelta</span>
+                                    <?php else: ?>
+                                        <span class="badge-gradient-neutral"><i class="fa-regular fa-clock mr-1"></i> Sin calificar</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <select name="calificaciones[<?= $a['id_aprendiz'] ?>]" class="form-select text-sm py-2">
+                                        <option value="Sin calificar" <?= $a['estado'] == 'Sin calificar' ? 'selected' : '' ?>>Sin calificar</option>
+                                        <option value="Aprobada" <?= $a['estado'] == 'Aprobada' ? 'selected' : '' ?>>Aprobada (A)</option>
+                                        <option value="Devuelta" <?= $a['estado'] == 'Devuelta' ? 'selected' : '' ?>>Devuelta (D)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        <?php endforeach; endif; ?>
                     </tbody>
                 </table>
             </div>
-            
+
             <?php if (!empty($alumnos)): ?>
-            <div class="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors shadow-sm focus:ring focus:ring-indigo-300 gap-2 flex items-center">
+            <div class="p-5 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                <button type="submit" class="btn-gradient-indigo btn-ripple text-sm flex items-center gap-2">
                     <i class="fa-solid fa-floppy-disk"></i> Guardar Calificaciones en Bloque
                 </button>
             </div>
