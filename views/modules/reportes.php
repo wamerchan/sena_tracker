@@ -19,14 +19,23 @@ if ($action === 'export_xls_aprendices') {
         <title>Generando XLS Ficha <?= htmlspecialchars($codigo_curso) ?></title>
         <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
         <style>
-            body { font-family: sans-serif; background: #333; display: flex; justify-content: center; padding-top: 50px; color: white; }
-            #loader { background: rgba(0,0,0,0.8); padding: 20px 40px; border-radius: 12px; font-weight: bold; border-left: 5px solid #10b981; }
-            /* Ocultamos la tabla en pantalla */
+            body { font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; color: #111827; }
             table { display: none; }
+            
+            #toast {
+                position: fixed; top: 24px; right: 24px; background: white; color: #1f2937;
+                padding: 16px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); 
+                border-left: 4px solid #3b82f6; display: flex; align-items: center; gap: 12px; z-index: 50;
+                transform: translateX(120%); animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            @keyframes slideInToast { to { transform: translateX(0); } }
+            .toast-success { border-left-color: #10b981 !important; color: #065f46 !important; }
+            .toast-error { border-left-color: #ef4444 !important; color: #991b1b !important; }
         </style>
     </head>
-    <body>
-        <div id="loader">Construyendo Matriz Excel (.xlsx) de la Ficha <?= htmlspecialchars($codigo_curso) ?>...</div>
+    <body style="display: flex; justify-content: center; padding-top: 100px;">
+        <div id="toast">⏳ Procesando Matriz Excel... Ficha <?= htmlspecialchars($codigo_curso) ?></div>
         
         <table id="tabla-xls">
             <thead>
@@ -60,15 +69,15 @@ if ($action === 'export_xls_aprendices') {
                     const wb = XLSX.utils.table_to_book(table, {sheet: "Ficha <?= htmlspecialchars($codigo_curso) ?>"});
                     XLSX.writeFile(wb, 'Aprendices_Ficha_<?= htmlspecialchars($codigo_curso) ?>.xlsx');
                     
-                    const loader = document.getElementById('loader');
-                    loader.innerText = "¡Excel generado exitosamente! Puede cerrar esta pestaña.";
-                    loader.style.borderLeftColor = "#059669";
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "✅ ¡Excel generado! Puede cerrar la pestaña.";
+                    toast.classList.add('toast-success');
                     
                     setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
                 } catch(e) {
-                    const loader = document.getElementById('loader');
-                    loader.innerText = "Error: " + e.message;
-                    loader.style.borderLeftColor = "#e11d48";
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "❌ Error: " + e.message;
+                    toast.classList.add('toast-error');
                 }
             };
         </script>
@@ -120,11 +129,20 @@ if ($action === 'export_curso_pdf') {
             .devuelta { color: #991b1b; font-weight: bold; background: #fee2e2 !important; }
             .pendiente { color: #9ca3af; }
             
-            #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 30px; border-radius: 10px; font-weight: bold; font-family: sans-serif; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5);}
+            #toast {
+                position: fixed; top: 24px; right: 24px; background: white; color: #1f2937;
+                padding: 16px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); 
+                border-left: 4px solid #3b82f6; display: flex; align-items: center; z-index: 1000;
+                transform: translateX(120%); animation: slideInToast 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+            @keyframes slideInToast { to { transform: translateX(0); } }
+            .toast-success { border-left-color: #10b981 !important; color: #065f46 !important; }
+            .toast-error { border-left-color: #ef4444 !important; color: #991b1b !important; }
         </style>
     </head>
     <body>
-        <div id="loader">Generando PDF Oficial y Procesando Vectores... Por favor espere.</div>
+        <div id="toast">⏳ Procesando Vectores PDF...</div>
         <div class="hoja" id="pdf-content">
             <h2>SÁBANA OFICIAL DE CALIFICACIONES</h2>
             <p class="sub">Programa ADSO - Ficha / Curso: <strong><?= htmlspecialchars($codigo_curso) ?></strong></p>
@@ -173,13 +191,14 @@ if ($action === 'export_curso_pdf') {
                 };
                 
                 html2pdf().set(opt).from(element).save().then(() => {
-                    document.getElementById('loader').innerText = "¡Descarga Completa! Puede cerrar esta pestaña.";
-                    document.getElementById('loader').style.background = "#166534";
-                    // Opcionalmente intentar cerrarla:
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "✅ ¡Descarga Completa! Puede cerrar la pestaña.";
+                    toast.classList.add('toast-success');
                     setTimeout(() => { try { window.close(); } catch(e){} }, 3000);
                 }).catch(e => {
-                    document.getElementById('loader').innerText = "Error: " + e.message;
-                    document.getElementById('loader').style.background = "#991b1b";
+                    const toast = document.getElementById('toast');
+                    toast.innerText = "❌ Error: " + e.message;
+                    toast.classList.add('toast-error');
                 });
             };
         </script>
