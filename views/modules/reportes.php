@@ -100,16 +100,6 @@ if ($action === 'historial'):
                 </div>
             </div>
 
-            <!-- Div Wrapper para el PDF -->
-            <div id="print-area" class="bg-white dark:bg-gray-800">
-                <!-- Información oculta que solo sale en el PDF -->
-                <div class="hidden print-header p-6 pb-0">
-                    <h2 class="text-2xl font-bold uppercase text-gray-900">Expediente Académico</h2>
-                    <p class="text-gray-600"><strong>Aprendiz:</strong> <?= htmlspecialchars($aprendiz['apellidos'] . ', ' . $aprendiz['nombres']) ?> (<?= htmlspecialchars($aprendiz['cedula']) ?>)</p>
-                    <p class="text-gray-600"><strong>Ficha:</strong> <?= htmlspecialchars($aprendiz['codigo_curso']) ?></p>
-                    <hr class="my-4 border-gray-200">
-                </div>
-
             <!-- Tabla de Historial -->
             <table id="tabla-exportar" class="min-w-full divide-y divide-gray-100 dark:divide-gray-700">
                 <thead class="bg-gray-50/80 dark:bg-gray-800/50">
@@ -179,7 +169,63 @@ if ($action === 'historial'):
                 </div>
             </div>
             <?php endif; ?>
-            </div> <!-- End Print Area -->
+        </div>
+        
+        <!-- Plantilla PDF Oculta y Estéril -->
+        <div style="position: absolute; left: -9999px; top: -9999px; width: 1100px; background: #ffffff;" id="pdf-container">
+            <div id="pdf-content" style="padding: 40px; font-family: Arial, Helvetica, sans-serif; color: #000; background: #ffffff; width: 100%; box-sizing: border-box;">
+                <table style="width: 100%; border-bottom: 2px solid #000; margin-bottom: 20px;">
+                    <tr>
+                        <td style="vertical-align: bottom;">
+                            <h1 style="font-size: 26px; font-weight: bold; margin: 0; text-transform: uppercase; color: #000;">Expediente Académico</h1>
+                        </td>
+                        <td style="text-align: right; vertical-align: bottom;">
+                            <span style="font-size: 16px; font-weight: bold; color: #000;">Documento Oficial SENA</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <table style="width: 100%; margin-bottom: 25px; font-size: 14px; text-transform: uppercase;">
+                    <tr>
+                        <td style="padding: 5px 0;"><strong>Aprendiz:</strong> <?= htmlspecialchars($aprendiz['apellidos'] . ', ' . $aprendiz['nombres']) ?></td>
+                        <td style="padding: 5px 0;"><strong>ID:</strong> <?= htmlspecialchars($aprendiz['cedula']) ?></td>
+                        <td style="padding: 5px 0;"><strong>Ficha:</strong> <?= htmlspecialchars($aprendiz['codigo_curso']) ?></td>
+                    </tr>
+                </table>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 30px;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 10px; text-align: left; background: #f3f4f6; color: #000; font-weight: bold;">CÓDIGO EVIDENCIA</th>
+                            <th style="border: 1px solid #000; padding: 10px; text-align: left; background: #f3f4f6; color: #000; font-weight: bold;">ETAPA / GUÍA</th>
+                            <th style="border: 1px solid #000; padding: 10px; text-align: center; background: #f3f4f6; color: #000; font-weight: bold;">CIERRE LÍMITE</th>
+                            <th style="border: 1px solid #000; padding: 10px; text-align: center; background: #f3f4f6; color: #000; font-weight: bold;">ESTATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(empty($historial)): ?>
+                            <tr><td colspan="4" style="border: 1px solid #000; padding: 15px; text-align: center;">No hay data curricular.</td></tr>
+                        <?php else: foreach($historial as $h): ?>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 10px; font-weight: bold; color: #000;"><?= htmlspecialchars($h['codigo_evidencia']) ?></td>
+                                <td style="border: 1px solid #000; padding: 10px; color: #000;"><?= htmlspecialchars($h['fase']) ?> - Guía <?= htmlspecialchars($h['guia_aprendizaje']) ?></td>
+                                <td style="border: 1px solid #000; padding: 10px; text-align: center; color: #000;"><?= (new DateTime($h['fecha_entrega']))->format('d/m/Y H:i') ?></td>
+                                <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold; color: <?= $h['nota'] === 'Aprobada' ? '#166534' : ($h['nota'] === 'Devuelta' ? '#92400e' : '#b91c1c') ?>;"><?= htmlspecialchars($h['nota']) ?></td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+
+                <?php if($total > 0): ?>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="text-align: right; font-size: 16px;">
+                            <strong>PROGRESO DEL PENSUM APROBADO:</strong> <?= $porcentaje ?>%
+                        </td>
+                    </tr>
+                </table>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- Librerías de Exportación JS -->
@@ -188,58 +234,27 @@ if ($action === 'historial'):
         
         <script>
         function exportarPDF() {
-            ToastSystem.info('Generando PDF', 'Preparando el documento, esto tomará unos segundos...');
+            ToastSystem.info('Generando PDF', 'Preparando el documento oficial de registro...');
             
-            const element = document.getElementById('print-area');
-            const header = element.querySelector('.print-header');
+            // 1. Apuntar directamente a la plantilla oculta y pura
+            const element = document.getElementById('pdf-content');
             
-            // 1. Mostrar cabecera oculta
-            header.classList.remove('hidden');
-            
-            // 2. Controlar 'Dark Mode' y color de fuente
-            const originalDark = document.documentElement.classList.contains('dark');
-            if (originalDark) document.documentElement.classList.remove('dark');
-            
-            // Inyectar CSS temporal para blanco y negro puro (textos e íconos)
-            const style = document.createElement('style');
-            style.id = 'pdf-print-styles';
-            style.innerHTML = `
-                #print-area * { color: #000 !important; border-color: #000 !important; }
-                .badge-gradient-success, .badge-gradient-warning, .badge-gradient-danger, .badge-gradient-neutral {
-                    background: transparent !important;
-                    border: 1px solid #000 !important;
-                }
-                .progress-bar-gradient { border: 1px solid #000 !important; background: transparent !important; }
-                .progress-bar-gradient > div { background: #000 !important; }
-                i.fa-solid, i.fa-regular { color: #000 !important; }
-            `;
-            document.head.appendChild(style);
-            
-            // 3. Opciones Apaisado y escalado
+            // 2. Opciones PDF Limpias
             const opt = {
                 margin:       10,
                 filename:     'Expediente_<?= htmlspecialchars($aprendiz['cedula']) ?>.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: element.scrollWidth }, // Captura al ancho real
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } // Horizontal 'apaisado'
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true, letterRendering: true, backgroundColor: '#ffffff' }, 
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
 
-            // 4. Generar y restaurar
+            // 3. Captura directa
             html2pdf().set(opt).from(element).save().then(() => {
-                restaurarEstilos(header, originalDark);
                 ToastSystem.success('Exportación Exitosa', 'El archivo PDF ha sido descargado en formato horizontal.');
             }).catch(err => {
-                restaurarEstilos(header, originalDark);
                 ToastSystem.error('Error', 'Hubo un problema generando el PDF.');
                 console.error(err);
             });
-        }
-        
-        function restaurarEstilos(header, wasDark) {
-            header.classList.add('hidden');
-            const styleNode = document.getElementById('pdf-print-styles');
-            if (styleNode) styleNode.remove();
-            if (wasDark) document.documentElement.classList.add('dark');
         }
 
         function exportarExcel() {
