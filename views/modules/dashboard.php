@@ -4,7 +4,8 @@ $db = Database::connect();
 
 // Cargar catálogos para los selects
 $fichas = $db->query("SELECT DISTINCT codigo_curso FROM evidencias ORDER BY codigo_curso")->fetchAll(PDO::FETCH_COLUMN);
-$evidencias_list = $db->query("SELECT DISTINCT codigo_evidencia FROM evidencias ORDER BY codigo_evidencia")->fetchAll(PDO::FETCH_COLUMN);
+$evidencias_raw = $db->query("SELECT DISTINCT codigo_evidencia, codigo_curso FROM evidencias ORDER BY codigo_curso, codigo_evidencia")->fetchAll(PDO::FETCH_ASSOC);
+$evidencias_json = json_encode($evidencias_raw);
 $aprendices_data = $db->query("SELECT id, cedula, nombres, apellidos, codigo_curso FROM aprendices ORDER BY apellidos, nombres")->fetchAll(PDO::FETCH_ASSOC);
 
 // Variables de contexto
@@ -53,32 +54,38 @@ if ($filter_type === 'ficha' && !empty($filter_value)) {
     $cerradas_count = $stmtCerr->fetchColumn();
 }
 elseif ($filter_type === 'evidencia' && !empty($filter_value)) {
-    $context_name = "Evidencia " . htmlspecialchars($filter_value);
+    $codigo_curso_ev = filter_input(INPUT_GET, 'codigo_curso', FILTER_SANITIZE_STRING) ?? '';
+    if(empty($codigo_curso_ev)){
+        // Fallback robusto por si alteran la URL a mano
+        $codigo_curso_ev = $db->query("SELECT codigo_curso FROM evidencias WHERE codigo_evidencia = " . $db->quote($filter_value) . " LIMIT 1")->fetchColumn();
+    }
+
+    $context_name = "Ficha " . htmlspecialchars($codigo_curso_ev) . " | Ev. " . htmlspecialchars($filter_value);
     
-    $stmtA = $db->prepare("SELECT COUNT(*) FROM aprendices WHERE codigo_curso = (SELECT codigo_curso FROM evidencias WHERE codigo_evidencia = ? LIMIT 1)");
-    $stmtA->execute([$filter_value]);
+    $stmtA = $db->prepare("SELECT COUNT(*) FROM aprendices WHERE codigo_curso = ?");
+    $stmtA->execute([$codigo_curso_ev]);
     $aprendices_count = $stmtA->fetchColumn();
     
     $evidencias_count = 1;
     
-    $stmtC = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_evidencia = ? AND c.estado_calificacion = 'Aprobada'");
-    $stmtC->execute([$filter_value]);
+    $stmtC = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_curso = ? AND e.codigo_evidencia = ? AND c.estado_calificacion = 'Aprobada'");
+    $stmtC->execute([$codigo_curso_ev, $filter_value]);
     $calificaciones_aprobadas = $stmtC->fetchColumn();
     
-    $stmtD = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_evidencia = ? AND c.estado_calificacion = 'Devuelta'");
-    $stmtD->execute([$filter_value]);
+    $stmtD = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_curso = ? AND e.codigo_evidencia = ? AND c.estado_calificacion = 'Devuelta'");
+    $stmtD->execute([$codigo_curso_ev, $filter_value]);
     $calificaciones_devueltas = $stmtD->fetchColumn();
 
-    $stmtS = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_evidencia = ? AND c.estado_calificacion = 'Sin calificar'");
-    $stmtS->execute([$filter_value]);
+    $stmtS = $db->prepare("SELECT COUNT(*) FROM calificaciones c JOIN evidencias e ON e.id = c.id_evidencia WHERE e.codigo_curso = ? AND e.codigo_evidencia = ? AND c.estado_calificacion = 'Sin calificar'");
+    $stmtS->execute([$codigo_curso_ev, $filter_value]);
     $calificaciones_sin_calificar = $stmtS->fetchColumn();
     
-    $stmtAb = $db->prepare("SELECT COUNT(*) FROM evidencias WHERE codigo_evidencia = ? AND fecha_entrega >= NOW()");
-    $stmtAb->execute([$filter_value]);
+    $stmtAb = $db->prepare("SELECT COUNT(*) FROM evidencias WHERE codigo_curso = ? AND codigo_evidencia = ? AND fecha_entrega >= NOW()");
+    $stmtAb->execute([$codigo_curso_ev, $filter_value]);
     $abiertas_count = $stmtAb->fetchColumn();
 
-    $stmtCerr = $db->prepare("SELECT COUNT(*) FROM evidencias WHERE codigo_evidencia = ? AND fecha_entrega < NOW()");
-    $stmtCerr->execute([$filter_value]);
+    $stmtCerr = $db->prepare("SELECT COUNT(*) FROM evidencias WHERE codigo_curso = ? AND codigo_evidencia = ? AND fecha_entrega < NOW()");
+    $stmtCerr->execute([$codigo_curso_ev, $filter_value]);
     $cerradas_count = $stmtCerr->fetchColumn();
 }
 elseif ($filter_type === 'aprendiz' && !empty($filter_value)) {
@@ -197,19 +204,24 @@ $metrics = [
             </div>
         </form>
 
-        <!-- Filtro Evidencia -->
-        <form method="GET" class="flex flex-col gap-2 relative">
+        <!-- Filtro Evidencia Dual -->
+        <form method="GET" class="flex flex-col gap-1 relative">
             <input type="hidden" name="view" value="dashboard">
             <input type="hidden" name="filter_type" value="evidencia">
-            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Por Evidencia</label>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Por Ficha y Evidencia</label>
+            
+            <select name="codigo_curso" id="evidencia_ficha_select" class="form-input rounded-lg !py-1.5 !text-xs font-medium bg-gray-50 dark:bg-gray-900/50" required onchange="filtrarEvidenciasPorFicha()">
+                <option value="">1. Ficha...</option>
+                <?php foreach($fichas as $f): ?>
+                    <option value="<?= htmlspecialchars($f) ?>" <?= (isset($_GET['codigo_curso']) && $_GET['codigo_curso'] === $f) ? 'selected' : '' ?>><?= htmlspecialchars($f) ?></option>
+                <?php endforeach; ?>
+            </select>
+
             <div class="flex shadow-sm rounded-lg">
-                <select name="filter_value" class="form-input rounded-r-none border-r-0 !py-2.5 !text-sm flex-1 font-medium bg-gray-50 dark:bg-gray-900/50" required>
-                    <option value="">Seleccione Evidencia...</option>
-                    <?php foreach($evidencias_list as $e): ?>
-                        <option value="<?= htmlspecialchars($e) ?>" <?= ($filter_type === 'evidencia' && $filter_value === $e) ? 'selected' : '' ?>><?= htmlspecialchars($e) ?></option>
-                    <?php endforeach; ?>
+                <select name="filter_value" id="evidencia_select" class="form-input rounded-b-lg rounded-t-none border-t-0 !py-2 !text-sm flex-1 font-medium bg-gray-50 dark:bg-gray-900/50" required disabled>
+                    <option value="">2. Evidencia...</option>
                 </select>
-                <button type="submit" class="btn-gradient-indigo rounded-l-none px-4"><i class="fa-solid fa-search"></i></button>
+                <button type="submit" class="btn-gradient-indigo rounded-br-lg rounded-tl-none px-4"><i class="fa-solid fa-search"></i></button>
             </div>
         </form>
 
@@ -418,4 +430,40 @@ $metrics = [
         };
         window.requestAnimationFrame(step);
     }
+
+    // Logic for Evidence Dependency Dropdown
+    const evidenciasData = <?= $evidencias_json ?>;
+
+    function filtrarEvidenciasPorFicha() {
+        const ficha = document.getElementById('evidencia_ficha_select').value;
+        const selectEvidencia = document.getElementById('evidencia_select');
+        
+        selectEvidencia.innerHTML = '<option value="">2. Seleccione Evidencia...</option>';
+        
+        if(!ficha) {
+            selectEvidencia.disabled = true;
+            return;
+        }
+        
+        selectEvidencia.disabled = false;
+        
+        const filtradas = evidenciasData.filter(e => e.codigo_curso === ficha);
+        filtradas.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.codigo_evidencia;
+            opt.textContent = e.codigo_evidencia;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('filter_type') === 'evidencia' && urlParams.get('filter_value') === e.codigo_evidencia) {
+                opt.selected = true;
+            }
+            
+            selectEvidencia.appendChild(opt);
+        });
+    }
+
+    if (document.getElementById('evidencia_ficha_select').value) {
+        filtrarEvidenciasPorFicha();
+    }
+
 </script>

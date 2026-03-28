@@ -1,4 +1,4 @@
-# SENA Tracker - ADSO
+# SENA Tracker
 
 Sistema integral de gestión y seguimiento de evidencias curriculares para las fichas de aprendizaje del SENA (Específicamente diseñado para el programa ADSO).
 

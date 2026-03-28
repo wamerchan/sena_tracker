@@ -1,4 +1,4 @@
-// assets/js/main.js - ADSO SENA Tracker - Global UI System
+// assets/js/main.js - SENA Tracker - Global UI System
 
 document.addEventListener('DOMContentLoaded', () => {
   initDarkMode();
@@ -131,8 +131,8 @@ function showDeleteConfirm(options = {}) {
     message = 'Esta accion no se puede deshacer.',
     confirmText = 'Si, Eliminar',
     cancelText = 'Cancelar',
-    onConfirm = () => {},
-    onCancel = () => {}
+    onConfirm = () => { },
+    onCancel = () => { }
   } = options;
 
   // Remove existing delete modal if any

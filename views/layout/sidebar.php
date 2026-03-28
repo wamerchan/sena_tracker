@@ -14,13 +14,13 @@
                     class="w-9 h-9 rounded-lg bg-gradient-to-br from-sena to-emerald-400 flex items-center justify-center shadow-sm">
                     <i class="fa-solid fa-graduation-cap text-white text-base"></i>
                 </div>
-                <span class="text-gray-800 dark:text-white font-extrabold text-xl tracking-tight uppercase">ADSO</span>
+                <span class="text-gray-800 dark:text-white font-extrabold text-xl tracking-tight uppercase">SENA</span>
             </div>
             <span
                 class="text-[10px] text-gray-400 dark:text-gray-500 font-semibold tracking-widest uppercase mt-0.5">Administrador
                 de Evidencias</span>
-            <span
-                class="text-[9px] text-sena/70 dark:text-emerald-400/60 font-mono tracking-widest mt-0.5">Versión: <?= htmlspecialchars($_ENV['APP_VERSION'] ?? '1.0.0') ?></span>
+            <span class="text-[9px] text-sena/70 dark:text-emerald-400/60 font-mono tracking-widest mt-0.5">Versión:
+                <?= htmlspecialchars($_ENV['APP_VERSION'] ?? '1.0.0') ?></span>
         </div>
     </div>
 

@@ -157,7 +157,7 @@ if ($is_ajax):
                     <tr class="table-row-hover stagger-item" style="animation-delay: <?= $i * 30 ?>ms">
                         <td class="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-100"><?= htmlspecialchars($a['cedula']) ?></td>
                         <td class="px-6 py-4">
-                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['apellidos'] . ', ' . $a['nombres']) ?></span>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['nombres'] . ' ' . $a['apellidos']) ?></span>
                         </td>
                         <td class="px-6 py-4 hidden md:table-cell">
                             <a href="mailto:<?= htmlspecialchars($a['correo']) ?>" class="text-sm text-gray-500 dark:text-gray-400 hover:text-sena transition-colors"><?= htmlspecialchars($a['correo']) ?></a>
@@ -290,7 +290,7 @@ endif;
                         <tr class="table-row-hover" style="animation: fadeInUp 0.4s ease-out <?= $i * 40 ?>ms forwards; opacity: 0;">
                             <td class="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-100"><?= htmlspecialchars($a['cedula']) ?></td>
                             <td class="px-6 py-4">
-                                <span class="text-sm font-semibold text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['apellidos'] . ', ' . $a['nombres']) ?></span>
+                                <span class="text-sm font-semibold text-gray-800 dark:text-gray-200"><?= htmlspecialchars($a['nombres'] . ' ' . $a['apellidos']) ?></span>
                             </td>
                             <td class="px-6 py-4 hidden md:table-cell">
                                 <a href="mailto:<?= htmlspecialchars($a['correo']) ?>" class="text-sm text-gray-500 dark:text-gray-400 hover:text-sena transition-colors"><?= htmlspecialchars($a['correo']) ?></a>
